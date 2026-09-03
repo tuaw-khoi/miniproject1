@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>VKU Field Survey Technical Report</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm;
+      }
+
+      body {
+        color: #0f172a;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      h1 {
+        color: #0284c7;
+        font-size: 26px;
+        margin: 0 0 12px;
+      }
+
+      h2 {
+        border-bottom: 1px solid #e2e8f0;
+        color: #075985;
+        font-size: 16px;
+        margin: 18px 0 8px;
+        padding-bottom: 4px;
+      }
+
+      p {
+        margin: 0 0 9px;
+      }
+
+      code {
+        background: #f1f5f9;
+        border-radius: 4px;
+        padding: 1px 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>VKU Field Survey - Technical Report</h1>
+
+    <h2>Problem</h2>
+    <p>
+      Facility inspections on campus often happen in rooms or buildings where
+      the connection is weak or unavailable. A normal web form can lose data
+      during refresh, close, or network failure. VKU Field Survey solves this by
+      treating local storage as the first-class data source and syncing later.
+    </p>
+
+    <h2>Features</h2>
+    <p>
+      The application provides a mobile-first inspection workflow with Home, New
+      Survey, History, and Detail screens. Inspectors can choose a building,
+      floor, room, equipment category, condition rating, defect notes, and photo
+      evidence. Drafts autosave while typing. Submitted records show one of four
+      states: Draft, Pending Sync, Synced, or Sync Failed.
+    </p>
+
+    <h2>Technology Stack</h2>
+    <p>
+      The client uses React, TypeScript, Vite, Tailwind CSS, React Router,
+      IndexedDB through <code>idb</code>, <code>uuid</code>,
+      <code>vite-plugin-pwa</code>, and Capacitor plugins for Camera and
+      Network. The server uses Node.js, Express, CORS, Morgan, and a local JSON
+      file for simple mini-project storage.
+    </p>
+
+    <h2>Architecture</h2>
+    <p>
+      The project is organized as an npm workspace. The <code>client</code>
+      workspace owns the PWA and Capacitor app. The <code>server</code>
+      workspace owns the REST API. Both sides share the same survey contract:
+      each submitted survey has a UUID, location fields, category, rating,
+      notes, optional photo data URL, timestamps, and sync status.
+    </p>
+    <p>
+      The client writes every draft and submission to IndexedDB. The server
+      exposes <code>POST /api/surveys</code>, <code>GET /api/surveys</code>, and
+      <code>GET /api/surveys/:id</code>. The post endpoint is idempotent by
+      UUID, so a retry cannot create duplicate remote records.
+    </p>
+
+    <h2>Offline And IndexedDB</h2>
+    <p>
+      The multi-step form uses an autosave hook that writes the current draft
+      into IndexedDB after changes. When the New Survey screen opens, it
+      restores the latest Draft record or creates a new one. Submitted surveys
+      are stored locally before the app attempts any network request. This means
+      API failure, browser refresh, app restart, or offline mode cannot erase
+      the inspection.
+    </p>
+
+    <h2>Synchronization</h2>
+    <p>
+      When the user submits offline, the survey becomes Pending Sync. When the
+      user submits online, the client still saves locally first, then uploads to
+      the API. Only a confirmed API success marks the survey as Synced. If
+      upload fails, the item becomes Sync Failed and remains retryable.
+    </p>
+    <p>
+      The sync engine processes Pending Sync and Sync Failed records
+      sequentially. A lock prevents overlapping sync runs. Sync is triggered on
+      app start, browser online events, native Capacitor network events, manual
+      Retry Sync, and Background Sync where supported. Background Sync is best
+      effort; normal app startup and network events remain the required
+      fallback.
+    </p>
+
+    <h2>PWA And Capacitor</h2>
+    <p>
+      The Vite PWA plugin uses a custom service worker with Workbox precache to
+      store the app shell. After the first successful load, the app can reopen
+      with network disabled. The manifest uses the required app name, short
+      name, standalone display, theme color, and 192/512 icons.
+    </p>
+    <p>
+      Capacitor uses the same React build output from <code>client/dist</code>.
+      The app is configured with native Camera and Network plugins. On Android,
+      the photo button uses the native camera prompt. On the web, it falls back
+      to file selection with image resizing.
+    </p>
+
+    <h2>Testing</h2>
+    <p>
+      The implemented check command runs TypeScript validation and production
+      builds for both workspaces. Manual acceptance testing should cover online
+      submit, offline form use, refresh recovery, offline submit, three queued
+      offline items, automatic sync after network restore, API failure retry
+      behavior, PWA offline boot, installability, Android APK, and native camera.
+    </p>
+
+    <h2>Conclusion</h2>
+    <p>
+      VKU Field Survey focuses on reliability before extras. The important
+      guarantee is that valid inspection data is saved locally first and never
+      depends on immediate internet access. The PWA and Android wrapper share
+      the same React codebase, while the Express API stays intentionally small
+      for demonstration and grading.
+    </p>
+  </body>
+</html>

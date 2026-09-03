@@ -1,0 +1,28 @@
+{
+  "name": "vku-field-survey",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline-first VKU facility inspection PWA and Capacitor app.",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c green,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev:client": "npm run dev -w client",
+    "dev:server": "npm run dev -w server",
+    "build": "npm run build -w server && npm run build -w client",
+    "build:pwa": "npm run build -w client",
+    "check": "npm run typecheck -w server && npm run typecheck -w client && npm run build -w server && npm run build -w client",
+    "android:add": "npm run cap:add:android -w client",
+    "android:sync": "npm run build:pwa && npm run cap:sync -w client",
+    "android:open": "npm run cap:open -w client",
+    "android:apk": "npm run build:pwa && npm run cap:sync -w client && cd client/android && ./gradlew assembleDebug"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
