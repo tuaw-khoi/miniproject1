@@ -7,6 +7,7 @@ import {
   precacheAndRoute
 } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
+import { API_BASE_URL } from "./services/apiConfig";
 import type { Survey, SurveyStatus } from "./types/survey";
 
 declare const self: ServiceWorkerGlobalScope & {
@@ -17,10 +18,6 @@ const DB_NAME = "vku-field-survey";
 const DB_VERSION = 1;
 const SURVEYS_STORE = "surveys";
 const BACKGROUND_SYNC_TAG = "vku-survey-sync";
-const DEFAULT_API_URL = "http://localhost:4000";
-const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ||
-  DEFAULT_API_URL;
 
 interface VkuFieldSurveyDB extends DBSchema {
   surveys: {

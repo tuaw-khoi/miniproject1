@@ -1,10 +1,5 @@
 import type { Survey } from "../types/survey";
-
-const DEFAULT_API_URL = "http://localhost:4000";
-
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ||
-  DEFAULT_API_URL;
+import { API_BASE_URL } from "./apiConfig";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {

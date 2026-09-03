@@ -40,6 +40,10 @@ The default local URLs are:
 - Frontend: `http://localhost:5173`
 - API: `http://localhost:4000`
 
+Photos are saved as compressed Base64 data URLs inside each survey record. In
+the browser/PWA they live in IndexedDB per device; after sync they are stored
+inline in the API storage record.
+
 ## Commands
 
 ```bash
@@ -81,7 +85,10 @@ Deploy `client/dist` to Cloudflare Pages or Vercel over HTTPS after running:
 npm run build:pwa
 ```
 
-For public sync, deploy `server/` separately and set `VITE_API_URL` to the hosted API URL before building the client.
+For public sync, deploy `server/` separately and set `VITE_API_URL` to the
+hosted HTTPS API URL before building the client. If `VITE_API_URL` is not set,
+local development falls back to `http://localhost:4000`, while production builds
+call same-origin `/api/*` routes instead of hard-coding localhost.
 
 ## Screenshots
 
