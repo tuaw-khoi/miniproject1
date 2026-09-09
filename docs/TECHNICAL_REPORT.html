@@ -90,6 +90,40 @@
         object-fit: contain;
         width: 100%;
       }
+      .spec-table,
+      .links-table {
+        border-collapse: collapse;
+        font-size: 9.4px;
+        margin-top: 6px;
+        width: 100%;
+      }
+      .spec-table th,
+      .spec-table td,
+      .links-table th,
+      .links-table td {
+        border: 1px solid #cbd5e1;
+        padding: 4px 5px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .spec-table th,
+      .links-table th {
+        background: #e0f2fe;
+        color: #075985;
+        font-weight: 700;
+      }
+      .spec-table td:first-child { font-weight: 700; width: 19%; }
+      .links-table td:first-child { font-weight: 700; width: 18%; }
+      a { color: #0369a1; text-decoration: none; }
+      .link-url { font-size: 8.4px; overflow-wrap: anywhere; }
+      .compact { font-size: 9.4px; }
+      .status-box {
+        background: #f0fdf4;
+        border-left: 4px solid #16a34a;
+        margin: 8px 0;
+        padding: 7px 10px;
+      }
+      .page:nth-of-type(5) .wide-shot { max-height: 78mm; }
       .footer-note { color: #64748b; font-size: 9px; margin-top: 12px; }
     </style>
   </head>
@@ -205,6 +239,69 @@
     </section>
 
     <section class="page">
+      <p class="eyebrow">Business Workflow</p>
+      <h1>From Field Entry To Resolution</h1>
+      <p>
+        The extension turns a simple form into a traceable inspection workflow.
+        Every record answers four questions: who inspected it, where and when
+        it was inspected, what condition was found, and what action should
+        happen next.
+      </p>
+
+      <h2>7. Operational Modules</h2>
+      <table class="spec-table">
+        <tr><th>Module</th><th>Implemented behavior</th><th>Operational value</th></tr>
+        <tr>
+          <td>Inspector and session</td>
+          <td>Offline profile stores name, ID, class/unit, phone, role and team. An active session stores survey batch, date, campus/zone and shift. Both are copied as immutable snapshots into each survey.</td>
+          <td>Auditable ownership remains correct even after the next session or profile edit.</td>
+        </tr>
+        <tr>
+          <td>Facility context</td>
+          <td>Building, floor, room, room type and custom room values identify the inspected location without forcing a fixed room list.</td>
+          <td>Suitable for classrooms, labs, offices, halls, libraries and remote buildings.</td>
+        </tr>
+        <tr>
+          <td>Category checklist</td>
+          <td>Hardware, Projector, AC, Electrical and Furniture each load a focused checklist. Items support <code>OK</code>, <code>Issue</code> and <code>Not Checked</code>, while the original 1-5 rating remains available.</td>
+          <td>Inspectors record repeatable evidence instead of relying only on free text.</td>
+        </tr>
+        <tr>
+          <td>Issue management</td>
+          <td>Severity, priority, issue type and recommended action classify findings. High/Critical records require explanatory notes and a photo before submission.</td>
+          <td>Creates a clear hand-off from observation to repair, replacement, cleaning, escalation or monitoring.</td>
+        </tr>
+        <tr>
+          <td>Evidence and correction</td>
+          <td>Photos are resized and saved offline; GPS stores coordinates, accuracy, capture time and an unavailable status when the device cannot provide a fix. Submitted surveys can be edited with a stable UUID and incremented version.</td>
+          <td>Preserves evidence in weak-signal areas and keeps corrections linked to the original finding.</td>
+        </tr>
+        <tr>
+          <td>Review and reporting</td>
+          <td>History filters by status, category, severity, priority, inspector and date. Admin can assign, add review notes and move a survey through Open, In Review, Resolved or Rejected.</td>
+          <td>Turns collected data into an actionable work queue and a reportable dataset.</td>
+        </tr>
+      </table>
+
+      <h2>8. Status Lifecycle And Access</h2>
+      <div class="flow">DRAFT -> PENDING_SYNC -> SYNCED -> IN_REVIEW -> RESOLVED / REJECTED
+                 \-> SYNC_FAILED -> RETRY</div>
+      <div class="grid">
+        <div class="panel compact">
+          <h3>Inspector workflow</h3>
+          <p>Complete profile/session, create a survey, move through the six steps, review validation, save locally, submit and continue working offline. History exposes retry, edit and export actions.</p>
+        </div>
+        <div class="panel compact">
+          <h3>Admin workflow</h3>
+          <p>Open <code>/admin</code>, enter the demo key, load synchronized surveys, inspect evidence and update assignment/review metadata. Admin endpoints reject missing or invalid keys on the server.</p>
+        </div>
+      </div>
+      <div class="status-box compact">
+        <strong>Boundary for this mini-project:</strong> the Admin key is a controlled demo gate, not a replacement for production authentication or role-based identity management. It is configured by <code>ADMIN_ACCESS_KEY</code> and works in both the PWA and APK builds.
+      </div>
+    </section>
+
+    <section class="page">
       <p class="eyebrow">Implemented Interface</p>
       <h1>Key Screens</h1>
       <div class="screens">
@@ -236,7 +333,7 @@
       <h1>Results</h1>
       <img class="wide-shot" src="screenshots/home.png" alt="Operational dashboard" />
 
-      <h2>7. Automated Verification</h2>
+      <h2>10. Automated Verification</h2>
       <div class="grid">
         <div class="panel">
           <h3>Unit / Integration</h3>
@@ -254,25 +351,40 @@
           </p>
         </div>
       </div>
+      <table class="spec-table compact">
+        <tr><th>Check</th><th>Result</th></tr>
+        <tr><td><code>npm test</code></td><td>Server and client unit suites pass, including validation, migration, queue, snapshot, edit and review rules.</td></tr>
+        <tr><td><code>npm run check</code></td><td>TypeScript and project checks pass for client, server and shared configuration.</td></tr>
+        <tr><td><code>npm run test:e2e -w client</code></td><td>Chromium flow passes for offline boot, reconnect sync, profile recovery, edit versioning, export, GPS and Admin key rejection/acceptance.</td></tr>
+        <tr><td>APK build</td><td>Capacitor Android build produces package <code>edu.vku.fieldsurvey</code>; physical Camera/Network/GPS verification remains the final manual step.</td></tr>
+      </table>
 
-      <h2>8. Delivery Status</h2>
+      <h2>11. Delivery Links</h2>
+      <table class="links-table">
+        <tr><th>Deliverable</th><th>Access</th></tr>
+        <tr><td>Live PWA</td><td><a class="link-url" href="https://miniproject1-client.vercel.app/">https://miniproject1-client.vercel.app/</a></td></tr>
+        <tr><td>Admin screen</td><td><a class="link-url" href="https://miniproject1-client.vercel.app/admin">https://miniproject1-client.vercel.app/admin</a><br />Demo key: <code>VKU-ADMIN-2026</code></td></tr>
+        <tr><td>GitHub source</td><td><a class="link-url" href="https://github.com/tuaw-khoi/miniproject1">https://github.com/tuaw-khoi/miniproject1</a></td></tr>
+        <tr><td>Android APK</td><td><a class="link-url" href="https://github.com/tuaw-khoi/miniproject1/releases/download/apk-latest/vku-field-survey.apk">https://github.com/tuaw-khoi/miniproject1/releases/download/apk-latest/vku-field-survey.apk</a></td></tr>
+        <tr><td>Google Sheet</td><td><a class="link-url" href="https://docs.google.com/spreadsheets/d/1Xctej_SH5Uo99ND0lzJh8EFS4Yfx-EnvC1Y8i9deh0Q/edit?usp=sharing">https://docs.google.com/spreadsheets/d/1Xctej_SH5Uo99ND0lzJh8EFS4Yfx-EnvC1Y8i9deh0Q/edit?usp=sharing</a></td></tr>
+        <tr><td>Drive evidence</td><td><a class="link-url" href="https://drive.google.com/drive/folders/1zlXHJdzi2g7GdeCwiGG_xjk14bGyTDJ5?usp=sharing">https://drive.google.com/drive/folders/1zlXHJdzi2g7GdeCwiGG_xjk14bGyTDJ5?usp=sharing</a></td></tr>
+      </table>
+
+      <h2>12. Delivery Status</h2>
       <p>
-        The PWA and same-origin API are live at
-        <code>miniproject1-client.vercel.app</code>. Source is public at
-        <code>github.com/tuaw-khoi/miniproject1</code>; the <code>apk-latest</code>
-        Release provides the signed Android APK. Production verification covers
-        deep links, CORS, versioned idempotent sync, Google Sheets central
-        records, service-worker offline reload and APK metadata. Physical-device
-        plugin testing remains. The demo Admin key is <code>VKU-ADMIN-2026</code>
-        and can be replaced through <code>ADMIN_ACCESS_KEY</code>.
+        The PWA, same-origin API, public source and Android release are ready for
+        demonstration. Central records use Google Sheets upsert semantics and
+        uploaded photos expose Drive URLs in the sheet. The remaining validation
+        item is installing the APK on a physical Android phone and exercising
+        native Camera, Network and GPS permissions end to end.
       </p>
 
-      <h2>9. Conclusion</h2>
       <p>
-        VKU Field Survey meets the original offline-first learning objectives
-        and now models a credible inspection-to-resolution process. Its core guarantee
-        remains unchanged: valid field data is saved locally first and never
-        depends on immediate connectivity.
+        <strong>Conclusion.</strong> VKU Field Survey meets the original
+        offline-first learning objectives and now models a credible
+        inspection-to-resolution process. Its core guarantee remains unchanged:
+        valid field data is saved locally first and never depends on immediate
+        connectivity.
       </p>
     </section>
   </body>
