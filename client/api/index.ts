@@ -1,29 +1,93 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { INSPECTOR_ROLES } from "../src/types/profile";
-import { INSPECTION_SHIFTS } from "../src/types/session";
-import {
-  CHECKLIST_STATUSES,
-  ISSUE_TYPES,
-  PRIORITIES,
-  RECOMMENDED_ACTIONS,
-  ROOM_TYPES,
-  SEVERITIES,
-  SURVEY_CATEGORIES,
-  type Survey
-} from "../src/types/survey";
 
-interface ApiRequest {
-  method?: string;
-  query: Record<string, string | string[] | undefined>;
-  body?: unknown;
-}
+const INSPECTOR_ROLES = [
+  "Student Auditor",
+  "Staff Inspector",
+  "Team Lead"
+] as const;
+const INSPECTION_SHIFTS = ["Morning", "Afternoon", "Evening"] as const;
+const SURVEY_CATEGORIES = [
+  "Hardware",
+  "Projector",
+  "AC",
+  "Electrical",
+  "Furniture"
+] as const;
+const ROOM_TYPES = [
+  "Classroom",
+  "Lab",
+  "Office",
+  "Hall",
+  "Library",
+  "Other"
+] as const;
+const CHECKLIST_STATUSES = ["OK", "ISSUE", "NOT_CHECKED"] as const;
+const SEVERITIES = ["Low", "Medium", "High", "Critical"] as const;
+const PRIORITIES = ["Normal", "Soon", "Urgent"] as const;
+const ISSUE_TYPES = [
+  "Broken",
+  "Missing",
+  "Dirty",
+  "Unsafe",
+  "Performance",
+  "Other"
+] as const;
+const RECOMMENDED_ACTIONS = [
+  "Repair",
+  "Replace",
+  "Clean",
+  "Escalate",
+  "Monitor"
+] as const;
 
-interface ApiResponse {
-  setHeader(name: string, value: string): void;
-  status(code: number): ApiResponse;
-  json(value: unknown): void;
-  end(): void;
+interface Survey {
+  id: string;
+  inspector: {
+    profileId: string;
+    fullName: string;
+    inspectorCode: string;
+    unit: string;
+    phone: string;
+    role: (typeof INSPECTOR_ROLES)[number];
+    inspectionGroup: string;
+  };
+  session: {
+    sessionId: string;
+    code: string;
+    surveyDate: string;
+    campusZone: string;
+    shift: (typeof INSPECTION_SHIFTS)[number];
+  };
+  building: string;
+  floor: string;
+  room: string;
+  roomType: (typeof ROOM_TYPES)[number];
+  category: (typeof SURVEY_CATEGORIES)[number];
+  checklist: Array<{
+    id: string;
+    label: string;
+    status: (typeof CHECKLIST_STATUSES)[number];
+  }>;
+  rating: number;
+  severity: (typeof SEVERITIES)[number];
+  priority: (typeof PRIORITIES)[number];
+  issueType: (typeof ISSUE_TYPES)[number];
+  recommendedAction: (typeof RECOMMENDED_ACTIONS)[number];
+  notes: string;
+  photo?: string;
+  gpsStatus: "not_requested" | "captured" | "unavailable";
+  gps?: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    capturedAt: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  status: "DRAFT" | "PENDING_SYNC" | "SYNCED" | "SYNC_FAILED";
+  syncedAt?: string;
+  syncAttempts?: number;
+  lastSyncError?: string;
 }
 
 interface StoredSurveyResult {
@@ -31,9 +95,9 @@ interface StoredSurveyResult {
   created: boolean;
 }
 
-const DATA_DIR = path.join("/tmp", "vku-field-survey");
-const DATA_FILE = path.join(DATA_DIR, "surveys.json");
-const TEMP_FILE = path.join(DATA_DIR, "surveys.json.tmp");
+const DATA_DIR = "/tmp/vku-field-survey";
+const DATA_FILE = `${DATA_DIR}/surveys.json`;
+const TEMP_FILE = `${DATA_DIR}/surveys.json.tmp`;
 
 let writeQueue = Promise.resolve();
 
@@ -54,18 +118,6 @@ function isOneOf<T extends string>(
   options: readonly T[]
 ): value is T {
   return options.includes(value as T);
-}
-
-function parseBody(body: unknown): unknown {
-  if (typeof body !== "string") {
-    return body;
-  }
-
-  try {
-    return JSON.parse(body) as unknown;
-  } catch {
-    return undefined;
-  }
 }
 
 function validateSurvey(value: unknown): value is Survey {
@@ -212,80 +264,76 @@ async function upsertSurvey(survey: Survey): Promise<StoredSurveyResult> {
   });
 }
 
-function getRoute(request: ApiRequest): string {
-  const route = request.query.route;
-  return Array.isArray(route) ? route.join("/") : (route ?? "");
+const RESPONSE_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Cache-Control": "no-store"
+};
+
+function json(value: unknown, status = 200): Response {
+  return Response.json(value, {
+    status,
+    headers: RESPONSE_HEADERS
+  });
 }
 
-function setCors(response: ApiResponse): void {
-  response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  response.setHeader("Cache-Control", "no-store");
-}
-
-export default async function handler(
-  request: ApiRequest,
-  response: ApiResponse
-): Promise<void> {
-  setCors(response);
-
-  if (request.method === "OPTIONS") {
-    response.status(204).end();
-    return;
-  }
-
-  const route = getRoute(request);
-
-  try {
-    if (request.method === "GET" && route === "health") {
-      response.status(200).json({
-        ok: true,
-        name: "VKU Field Survey API",
-        runtime: "vercel"
+export default {
+  async fetch(request: Request): Promise<Response> {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: RESPONSE_HEADERS
       });
-      return;
     }
 
-    if (request.method === "GET" && route === "surveys") {
-      const surveys = await readSurveys();
-      response
-        .status(200)
-        .json(surveys.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-      return;
-    }
+    const url = new URL(request.url);
+    const route = url.searchParams.get("route") ?? "";
 
-    if (request.method === "GET" && route.startsWith("surveys/")) {
-      const id = decodeURIComponent(route.slice("surveys/".length));
-      const surveys = await readSurveys();
-      const survey = surveys.find((item) => item.id === id);
-
-      if (!survey) {
-        response.status(404).json({ error: "Survey not found." });
-        return;
+    try {
+      if (request.method === "GET" && route === "health") {
+        return json({
+          ok: true,
+          name: "VKU Field Survey API",
+          runtime: "vercel"
+        });
       }
 
-      response.status(200).json(survey);
-      return;
-    }
-
-    if (request.method === "POST" && route === "surveys") {
-      const body = parseBody(request.body);
-
-      if (!validateSurvey(body)) {
-        response.status(400).json({ error: "Invalid survey payload." });
-        return;
+      if (request.method === "GET" && route === "surveys") {
+        const surveys = await readSurveys();
+        return json(
+          surveys.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        );
       }
 
-      const result = await upsertSurvey(body);
-      response.status(result.created ? 201 : 200).json(result.survey);
-      return;
-    }
+      if (request.method === "GET" && route.startsWith("surveys/")) {
+        const id = decodeURIComponent(route.slice("surveys/".length));
+        const surveys = await readSurveys();
+        const survey = surveys.find((item) => item.id === id);
 
-    response.status(404).json({ error: "API route not found." });
-  } catch (error) {
-    response.status(500).json({
-      error: error instanceof Error ? error.message : "Unexpected server error."
-    });
+        return survey ? json(survey) : json({ error: "Survey not found." }, 404);
+      }
+
+      if (request.method === "POST" && route === "surveys") {
+        const body = (await request.json().catch(() => undefined)) as unknown;
+
+        if (!validateSurvey(body)) {
+          return json({ error: "Invalid survey payload." }, 400);
+        }
+
+        const result = await upsertSurvey(body);
+        return json(result.survey, result.created ? 201 : 200);
+      }
+
+      return json({ error: "API route not found." }, 404);
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error ? error.message : "Unexpected server error."
+        },
+        500
+      );
+    }
   }
-}
+};
