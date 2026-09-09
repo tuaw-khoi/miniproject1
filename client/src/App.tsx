@@ -8,6 +8,7 @@ import { PageShell } from "./components/PageShell";
 import { useNetwork } from "./hooks/useNetwork";
 import { HomePage } from "./pages/HomePage";
 import { NewSurveyPage } from "./pages/NewSurveyPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { SurveyDetailPage } from "./pages/SurveyDetailPage";
 import { SurveysPage } from "./pages/SurveysPage";
 import {
@@ -41,6 +42,7 @@ export function App() {
           <Route path="new" element={<NewSurveyPage network={network} />} />
           <Route path="surveys" element={<SurveysPage />} />
           <Route path="surveys/:id" element={<SurveyDetailPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </BrowserRouter>

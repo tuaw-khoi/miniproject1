@@ -1,0 +1,90 @@
+name: Build Android Debug APK
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "Optional public HTTPS API URL for APK sync, for example https://your-api.example.com"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-debug-apk:
+    name: Capacitor debug APK
+    runs-on: ubuntu-latest
+
+    env:
+      VITE_API_URL: ${{ inputs.api_url || vars.VITE_API_URL || secrets.VITE_API_URL || 'https://miniproject1-client.vercel.app' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run typed unit tests
+        run: npm test
+
+      - name: Sync Capacitor Android project
+        run: npm run android:sync
+
+      - name: Build debug APK
+        working-directory: client/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vku-field-survey-debug-apk
+          path: client/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Prepare APK release file
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: cp client/android/app/build/outputs/apk/debug/app-debug.apk vku-field-survey.apk
+
+      - name: Publish latest installable APK
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: VKU Field Survey - Latest Android APK
+          prerelease: true
+          body: |
+            Installable Android debug build generated from the latest main branch.
+            The APK uses https://miniproject1-client.vercel.app for online synchronization.
+          files: vku-field-survey.apk
+          fail_on_unmatched_files: true
+          overwrite_files: true

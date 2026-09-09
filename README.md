@@ -1,31 +1,59 @@
 # VKU Field Survey
 
-Offline-first field inspection app for VKU campus facilities. The app lets an inspector create surveys, attach photos, submit while offline, keep all data in IndexedDB, and automatically sync queued records when the API becomes reachable.
+Offline-first facility inspection system for VKU campus. Inspectors can maintain a local identity, work in an inspection session, complete category-specific checklists, attach photo/GPS evidence, submit with no network, and automatically synchronize queued records later.
 
-## Features
+[Live PWA](https://miniproject1-client.vercel.app) | [API Health](https://miniproject1-client.vercel.app/api/health) | [Download Android APK](https://github.com/tuaw-khoi/miniproject1/releases/download/apk-latest/vku-field-survey.apk)
 
-- React, TypeScript, Vite, Tailwind mobile-first PWA.
-- IndexedDB persistence with `idb` for drafts, completed surveys, and sync queue.
-- Autosaved multi-step inspection form with refresh protection.
-- Offline submit flow using `DRAFT`, `PENDING_SYNC`, `SYNCED`, and `SYNC_FAILED`.
-- Sequential retry sync with duplicate protection through client UUIDs.
-- Express REST API with idempotent `POST /api/surveys`.
-- PWA manifest, app shell precache, offline boot after first visit, and Background Sync best effort.
-- Capacitor config for Android plus native Camera and Network plugins.
+## Core Features
+
+- Installable React, TypeScript, Vite and Tailwind PWA.
+- Cache-first application shell with standalone manifest and VKU theme.
+- IndexedDB stores for surveys, inspector profile and inspection sessions.
+- Six-step form: assignment, location, checklist, assessment, evidence and review.
+- Autosaved drafts with refresh/restart recovery.
+- Building, floor, custom room and room-type facility context.
+- Hardware, Projector, AC, Electrical and Furniture checklists.
+- Condition rating, severity, priority, issue type and recommended action.
+- Mandatory notes plus mandatory photo for High/Critical issues.
+- Native Capacitor GPS and Camera with browser fallbacks.
+- Offline queue with UUIDs, sequential retry, duplicate-run lock and idempotent API.
+- Search/filter by status, category, severity, priority, inspector and date.
+- Local CSV/JSON export that remains available offline.
+- Operational dashboard for today's records, pending/failed sync, critical issues and low ratings.
+
+## Architecture
+
+```text
+React PWA / Capacitor
+  -> IndexedDB (surveys, profile, sessions)
+  -> local-first submit (PENDING_SYNC)
+  -> sequential sync service / Background Sync
+  -> Express REST API
+  -> JSON storage, idempotent by survey UUID
+```
+
+Every survey stores immutable `inspector` and `session` snapshots. Changing the local profile later does not rewrite existing inspection records. IndexedDB version 2 normalizes records created by the original schema so local drafts and queued surveys are preserved.
 
 ## Project Structure
 
 ```text
-client/   React PWA and Capacitor app
-server/   Express REST API with local JSON storage
-docs/     Technical report and screenshots
+client/src/pages/       Home, Profile, New Survey, History and Detail
+client/src/db/          IndexedDB schema and local repository functions
+client/src/services/    API, sync, camera, GPS, network and export services
+client/src/types/       Strongly typed profile, session and survey contracts
+client/src/sw.ts        App-shell cache and Background Sync handler
+client/android/         Capacitor Android project
+server/src/             Express API, validation and idempotent storage
+docs/                   Report, implementation checklist and screenshots
 ```
 
 ## Requirements
 
 - Node.js 20 or newer
 - npm 10 or newer
+- Chromium for the optional browser E2E check
 - Android Studio and Android SDK for APK builds
+- GitHub Actions can build the debug APK when the local Android SDK is unavailable
 
 ## Setup
 
@@ -35,25 +63,27 @@ cp .env.example .env
 npm run dev
 ```
 
-The default local URLs are:
+Local URLs:
 
-- Frontend: `http://localhost:5173`
+- PWA: `http://localhost:5173`
 - API: `http://localhost:4000`
 
-Photos are saved as compressed Base64 data URLs inside each survey record. In
-the browser/PWA they live in IndexedDB per device; after sync they are stored
-inline in the API storage record.
+Open Profile first and enter the inspector identity and active session. Profile/session data remains local to the current device. Photos are resized and stored as Base64 data URLs in IndexedDB; synchronized records keep the evidence inline in server JSON storage.
 
 ## Commands
 
 ```bash
-npm run dev          # run client and server together
-npm run check        # typecheck and build both workspaces
-npm run build:pwa    # build the installable PWA
-npm run android:add  # create Capacitor Android project once
-npm run android:sync # build web assets and sync Android
-npm run android:apk  # build Android debug APK when Android SDK exists
+npm run dev             # client and API development servers
+npm test                # client business/IndexedDB tests and server validation tests
+npm run check           # typecheck and production build for both workspaces
+npm run build:pwa       # production PWA build
+npm run test:e2e -w client  # real Chromium workflow and screenshots
+npm run android:sync    # build web assets and sync Capacitor Android
+npm run android:open    # open the Android project
+npm run android:apk     # create app-debug.apk when Android SDK is configured
 ```
+
+The E2E command uses a temporary API data directory. It verifies profile persistence, online submit, offline submit, automatic reconnect sync, GPS, CSV export and service-worker offline boot without changing `server/data/surveys.json`. Set `CHROMIUM_PATH` if Chromium is installed outside the common Linux paths.
 
 ## API
 
@@ -64,40 +94,53 @@ GET  /api/surveys/:id
 POST /api/surveys
 ```
 
-`POST /api/surveys` is idempotent. If the server already has a survey with the same UUID, it returns the existing survey instead of creating a duplicate.
+`POST /api/surveys` validates the complete business payload and is idempotent. Retrying the same UUID returns the existing record instead of creating a duplicate.
 
-## Manual Acceptance Tests
+## Manual Acceptance Test
 
-1. Online: create a survey and submit. It should become `SYNCED`.
-2. Refresh protection: partially fill the form, reload, and confirm the draft returns.
-3. Offline submit: disable network, create a survey, submit, and confirm `PENDING_SYNC`.
-4. Multiple offline items: create three offline surveys and confirm all remain in History.
-5. Automatic sync: re-enable network while the API is running. Pending items should become `SYNCED`.
-6. Failed API: stop the server, submit online, and confirm the survey remains local as `SYNC_FAILED`.
-7. PWA offline boot: build/preview the PWA, load it once, disable network, close/reopen, and confirm the app shell still opens.
-8. Android: run `npm run android:apk` on a machine with Android SDK, install the debug APK, and test camera/network.
+1. Complete Profile and confirm it remains after refresh.
+2. Create a partial inspection, reload, and confirm the draft is restored.
+3. Submit normally and confirm the record becomes `SYNCED`.
+4. Disable network, submit three surveys, and confirm all become `PENDING_SYNC`.
+5. Restore network and confirm the queue synchronizes sequentially.
+6. Stop the API and confirm a failed upload remains local as `SYNC_FAILED`.
+7. Set severity to High or Critical and confirm notes/photo rules are enforced.
+8. Export filtered History as CSV and JSON while offline.
+9. Reopen the installed PWA offline after one successful online visit.
+10. On Android, verify native Camera, Network and Geolocation permissions/plugins.
 
-## Deployment Notes
+## Android
 
-Deploy `client/dist` to Cloudflare Pages or Vercel over HTTPS after running:
+The PWA and APK share the same React source. Android permissions include Camera, coarse location, fine location and Internet. After configuring `ANDROID_HOME` or `client/android/local.properties`, run:
 
 ```bash
-npm run build:pwa
+npm run android:sync
+npm run android:apk
 ```
 
-For public sync, deploy `server/` separately and set `VITE_API_URL` to the
-hosted HTTPS API URL before building the client. If `VITE_API_URL` is not set,
-local development falls back to `http://localhost:4000`, while production builds
-call same-origin `/api/*` routes instead of hard-coding localhost.
+Expected debug APK: `client/android/app/build/outputs/apk/debug/app-debug.apk`.
 
-## Screenshots
+### Build APK Without Local Android SDK
 
-Generated screenshots can be placed in `docs/screenshots/`:
+The included GitHub Actions workflow builds the APK in the cloud on every push to `main`. It embeds the production API URL, signs the debug build and publishes a stable download link:
 
-- `docs/screenshots/home.png`
-- `docs/screenshots/new-survey.png`
-- `docs/screenshots/history.png`
+<https://github.com/tuaw-khoi/miniproject1/releases/download/apk-latest/vku-field-survey.apk>
 
-## Report
+The same build is also retained for 14 days as the `vku-field-survey-debug-apk` artifact under GitHub Actions. A manual workflow run can override the backend with the `api_url` input or repository variable/secret `VITE_API_URL`.
 
-The technical report source is in `docs/TECHNICAL_REPORT.html`. The generated PDF deliverable is `docs/VKU_FIELD_SURVEY_REPORT.pdf`.
+To install on a phone, open the download link in Chrome, allow that browser to install unknown apps when Android prompts, then open `vku-field-survey.apk`. The debug signature is suitable for course submission and physical-device testing; it is not a Play Store release signature.
+
+## Deployment
+
+- Live PWA: <https://miniproject1-client.vercel.app>
+- API health check: <https://miniproject1-client.vercel.app/api/health>
+- Public source: <https://github.com/tuaw-khoi/miniproject1>
+
+The connected Vercel project uses `client/` as its Root Directory. `client/vercel.json` preserves React Router deep links, serves the Vite PWA, and routes `/api/*` to the same-origin Vercel Function. The deployed demo API uses temporary function JSON storage; IndexedDB remains the durable source of truth on each device, so a server cold start cannot remove local drafts or synchronized survey history.
+
+## Submission Assets
+
+- Technical report: `docs/VKU_FIELD_SURVEY_REPORT.pdf`
+- Report sources: `docs/TECHNICAL_REPORT.md` and `docs/TECHNICAL_REPORT.html`
+- Screenshots: `docs/screenshots/`
+- Live PWA, public repository and APK download links are listed at the top of this README.

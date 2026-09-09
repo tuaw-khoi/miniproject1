@@ -1,11 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { getLatestDraft, putSurvey } from "../db/indexedDB";
+import {
+  getCurrentInspectionSession,
+  getInspectorProfile,
+  getLatestDraft,
+  putCurrentInspectionSession,
+  putDraftSurvey
+} from "../db/indexedDB";
 import { surveyStore } from "../stores/surveyStore";
 import {
-  createEmptySurvey,
-  type Survey
-} from "../types/survey";
+  isInspectorProfileComplete,
+  toInspectorSnapshot,
+  type InspectorProfile
+} from "../types/profile";
+import {
+  createInspectionSession,
+  isInspectionSessionComplete,
+  toSessionSnapshot,
+  type InspectionSession
+} from "../types/session";
+import { createEmptySurvey, type Survey } from "../types/survey";
 
 interface UseSurveyDraftResult {
   draft: Survey | undefined;
@@ -16,9 +30,17 @@ interface UseSurveyDraftResult {
   resetDraft: () => void;
 }
 
-function newDraft(): Survey {
+function newDraft(
+  profile: InspectorProfile,
+  session: InspectionSession
+): Survey {
   const now = new Date().toISOString();
-  return createEmptySurvey(uuidv4(), now);
+  return createEmptySurvey(
+    uuidv4(),
+    now,
+    toInspectorSnapshot(profile),
+    toSessionSnapshot(session)
+  );
 }
 
 export function useSurveyDraft(): UseSurveyDraftResult {
@@ -27,32 +49,62 @@ export function useSurveyDraft(): UseSurveyDraftResult {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
     "idle"
   );
+  const contextRef = useRef<{
+    profile: InspectorProfile;
+    session: InspectionSession;
+  } | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
 
-    void getLatestDraft().then((storedDraft) => {
-      if (!active) {
-        return;
-      }
+    const load = async (): Promise<void> => {
+      const [storedDraft, profile, storedSession] = await Promise.all([
+        getLatestDraft(),
+        getInspectorProfile(),
+        getCurrentInspectionSession()
+      ]);
+      const now = new Date().toISOString();
+      const session =
+        storedSession ??
+        (await putCurrentInspectionSession(
+          createInspectionSession("current-session", now)
+        ));
 
-      setDraft(storedDraft ?? newDraft());
+      if (!active) return;
+
+      contextRef.current = { profile, session };
+      const restoredDraft = storedDraft
+        ? {
+            ...storedDraft,
+            inspector:
+              !isInspectorProfileComplete(storedDraft.inspector) &&
+              isInspectorProfileComplete(profile)
+                ? toInspectorSnapshot(profile)
+                : storedDraft.inspector,
+            session:
+              !isInspectionSessionComplete(storedDraft.session) &&
+              isInspectionSessionComplete(session)
+                ? toSessionSnapshot(session)
+                : storedDraft.session
+          }
+        : undefined;
+
+      setDraft(restoredDraft ?? newDraft(profile, session));
       setLoading(false);
-    });
+    };
 
+    void load();
     return () => {
       active = false;
     };
   }, []);
 
   useEffect(() => {
-    if (!draft || loading || draft.status !== "DRAFT") {
-      return undefined;
-    }
+    if (!draft || loading || draft.status !== "DRAFT") return undefined;
 
     setSaveState("saving");
     const timeout = window.setTimeout(() => {
-      void putSurvey({
+      void putDraftSurvey({
         ...draft,
         updatedAt: new Date().toISOString()
       }).then(() => {
@@ -61,32 +113,27 @@ export function useSurveyDraft(): UseSurveyDraftResult {
       });
     }, 350);
 
-    return () => {
-      window.clearTimeout(timeout);
-    };
+    return () => window.clearTimeout(timeout);
   }, [draft, loading]);
 
   const updateDraft = useCallback((patch: Partial<Survey>) => {
-    setDraft((current) => {
-      if (!current) {
-        return current;
-      }
-
-      return {
-        ...current,
-        ...patch,
-        status: "DRAFT",
-        updatedAt: new Date().toISOString()
-      };
-    });
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            ...patch,
+            status: "DRAFT",
+            updatedAt: new Date().toISOString()
+          }
+        : current
+    );
   }, []);
 
-  const replaceDraft = useCallback((survey: Survey) => {
-    setDraft(survey);
-  }, []);
+  const replaceDraft = useCallback((survey: Survey) => setDraft(survey), []);
 
   const resetDraft = useCallback(() => {
-    setDraft(newDraft());
+    const context = contextRef.current;
+    if (context) setDraft(newDraft(context.profile, context.session));
     setSaveState("idle");
   }, []);
 

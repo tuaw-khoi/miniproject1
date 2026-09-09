@@ -2,34 +2,47 @@
 
 ## Completed Locally
 
-- [x] npm workspace with `client` and `server`.
-- [x] React TypeScript Vite Tailwind PWA client.
-- [x] Mobile-first Home, New Survey, History, and Detail screens.
-- [x] Five-step inspection form.
-- [x] IndexedDB persistence through `idb`.
-- [x] Draft autosave and draft restore.
-- [x] Offline-safe submit flow.
-- [x] Sequential sync engine with duplicate-run lock.
-- [x] Background Sync best effort plus startup/network/manual fallback.
-- [x] Express REST API.
-- [x] Idempotent `POST /api/surveys` by UUID.
-- [x] PWA manifest, app shell precache, and 192/512 icons.
-- [x] Capacitor Android project.
-- [x] Native Camera and Network plugin integration.
-- [x] README, screenshots, report source, and generated PDF report.
+- [x] React TypeScript Vite Tailwind PWA and Express API workspaces.
+- [x] Standalone manifest, Workbox app-shell cache and 192/512 icons.
+- [x] Home, Profile, New Survey, History and Detail screens.
+- [x] IndexedDB v2 stores for surveys, profile and inspection sessions.
+- [x] Backward normalization for survey records stored by IndexedDB v1.
+- [x] Local inspector profile and active session autosave.
+- [x] Immutable inspector/session snapshots in every new survey.
+- [x] Six-step mobile-first inspection form and draft recovery.
+- [x] Room type, custom room and five category-specific checklists.
+- [x] Severity, priority, issue type and recommended action.
+- [x] Required photo validation for High/Critical issues.
+- [x] Photo and GPS evidence with browser/native implementations.
+- [x] Offline-safe submit and sequential sync queue.
+- [x] Startup, network event, Background Sync and manual retry triggers.
+- [x] Idempotent `POST /api/surveys` and nested server validation.
+- [x] Dashboard, Needs Action badges and professional History filters.
+- [x] Offline CSV/JSON export.
+- [x] Capacitor Camera, Network and Geolocation dependencies/permissions.
+- [x] README, updated screenshots and 4-page report source/PDF.
 
 ## Verified
 
-- [x] `npm run check` passes.
-- [x] `npm audit --audit-level=moderate` reports 0 vulnerabilities.
-- [x] API runtime test: first `POST` returns 201, duplicate UUID retry returns 200, stored duplicate count remains 1.
-- [x] `npm run android:sync` passes.
-- [x] Screenshots generated in `docs/screenshots/`.
-- [x] Report PDF generated at `docs/VKU_FIELD_SURVEY_REPORT.pdf`.
+- [x] `npm test`: 3 server tests and 7 client tests pass.
+- [x] `npm run check`: server/client typecheck and production builds pass.
+- [x] Chromium E2E profile persistence and immutable local setup.
+- [x] Chromium E2E online submission becomes `SYNCED`.
+- [x] Chromium E2E offline submission becomes `PENDING_SYNC`.
+- [x] Chromium E2E network restoration automatically syncs the queue.
+- [x] Chromium E2E GPS capture and offline CSV export.
+- [x] Chromium E2E PWA close/reopen while offline.
+- [x] E2E uses temporary API storage and does not alter repository survey data.
+- [x] `npm run android:sync` copies the final PWA and registers native plugins.
+- [x] GitHub Actions workflow can build and upload a debug APK without local Android SDK.
+- [x] Vercel Function, Capacitor CORS and SPA deep-link routing pass local smoke tests.
+- [x] Android assets embed the public HTTPS API instead of `localhost`.
+- [x] Public GitHub repository: `https://github.com/tuaw-khoi/miniproject1`.
+- [x] Connected Vercel production URL: `https://miniproject1-client.vercel.app`.
 
 ## Needs External Setup
 
-- [ ] `npm run android:apk` requires Android SDK. Current machine is missing `ANDROID_HOME` or `client/android/local.properties`.
-- [ ] Public GitHub repository requires a GitHub remote/account.
-- [ ] Live HTTPS deployment requires Cloudflare Pages, Vercel, or another hosting target.
-- [ ] Final APK/manual camera test requires an Android emulator or device.
+- [ ] `npm run android:apk` requires Android SDK configuration through `ANDROID_HOME` or `client/android/local.properties`.
+- [ ] Confirm the post-push GitHub Actions build and release asset complete successfully.
+- [ ] Install the APK on an emulator/device and manually verify Camera, Network and GPS permissions.
+- [ ] Manually repeat the canonical offline/reconnect flow on the physical phone.

@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/types.test.js",
     "start": "node dist/index.js"
   },
   "dependencies": {

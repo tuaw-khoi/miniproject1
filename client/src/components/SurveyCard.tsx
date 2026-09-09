@@ -1,6 +1,6 @@
-import { Building2, CalendarClock, MapPin } from "lucide-react";
+import { AlertTriangle, Building2, CalendarClock, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Survey } from "../types/survey";
+import { needsAction, type Survey } from "../types/survey";
 import { formatDateTime } from "../utils/format";
 import { StatusBadge } from "./StatusBadge";
 
@@ -46,12 +46,20 @@ export function SurveyCard({ survey }: SurveyCardProps) {
                 {survey.category}
               </p>
             </div>
-            <StatusBadge status={survey.status} />
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {needsAction(survey) ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-200">
+                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                  Needs Action
+                </span>
+              ) : null}
+              <StatusBadge status={survey.status} />
+            </div>
           </div>
 
           <p className="mt-3 flex items-center gap-1 text-xs text-slate-500">
             <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
-            {formatDateTime(survey.updatedAt)}
+            {survey.severity} · {formatDateTime(survey.updatedAt)}
           </p>
         </div>
       </div>

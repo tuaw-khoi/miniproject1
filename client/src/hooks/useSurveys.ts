@@ -8,10 +8,13 @@ import type { Survey, SurveyCounts } from "../types/survey";
 
 const EMPTY_COUNTS: SurveyCounts = {
   total: 0,
+  today: 0,
   draft: 0,
   pending: 0,
   synced: 0,
-  failed: 0
+  failed: 0,
+  critical: 0,
+  lowRating: 0
 };
 
 export function useSurveys(): {

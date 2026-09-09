@@ -8,15 +8,23 @@ import {
 } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import { API_BASE_URL } from "./services/apiConfig";
-import type { Survey, SurveyStatus } from "./types/survey";
+import type { InspectorProfile } from "./types/profile";
+import type { InspectionSession } from "./types/session";
+import {
+  normalizeSurvey,
+  type Survey,
+  type SurveyStatus
+} from "./types/survey";
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Parameters<typeof precacheAndRoute>[0];
 };
 
 const DB_NAME = "vku-field-survey";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const SURVEYS_STORE = "surveys";
+const PROFILE_STORE = "profile";
+const SESSIONS_STORE = "sessions";
 const BACKGROUND_SYNC_TAG = "vku-survey-sync";
 
 interface VkuFieldSurveyDB extends DBSchema {
@@ -26,6 +34,17 @@ interface VkuFieldSurveyDB extends DBSchema {
     indexes: {
       "by-status": SurveyStatus;
       "by-created-at": string;
+      "by-updated-at": string;
+    };
+  };
+  profile: {
+    key: string;
+    value: InspectorProfile;
+  };
+  sessions: {
+    key: string;
+    value: InspectionSession;
+    indexes: {
       "by-updated-at": string;
     };
   };
@@ -66,10 +85,22 @@ async function syncPendingSurveysFromWorker(): Promise<void> {
           });
 
       ensureSurveyIndexes(store);
+
+      if (!database.objectStoreNames.contains(PROFILE_STORE)) {
+        database.createObjectStore(PROFILE_STORE, { keyPath: "id" });
+      }
+
+      if (!database.objectStoreNames.contains(SESSIONS_STORE)) {
+        const sessionStore = database.createObjectStore(SESSIONS_STORE, {
+          keyPath: "id"
+        });
+        sessionStore.createIndex("by-updated-at", "updatedAt");
+      }
     }
   });
 
   const queue = (await db.getAll(SURVEYS_STORE))
+    .map(normalizeSurvey)
     .filter(
       (survey) =>
         survey.status === "PENDING_SYNC" || survey.status === "SYNC_FAILED"

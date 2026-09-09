@@ -14,6 +14,7 @@
     "build": "npm run build -w server && npm run build -w client",
     "build:pwa": "npm run build -w client",
     "check": "npm run typecheck -w server && npm run typecheck -w client && npm run build -w server && npm run build -w client",
+    "test": "npm run test -w server && npm run test -w client",
     "android:add": "npm run cap:add:android -w client",
     "android:sync": "npm run build:pwa && npm run cap:sync -w client",
     "android:open": "npm run cap:open -w client",

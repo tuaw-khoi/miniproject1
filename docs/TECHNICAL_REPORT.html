@@ -2,145 +2,259 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>VKU Field Survey Technical Report</title>
+    <title>VKU Field Survey - Short Technical Report</title>
     <style>
-      @page {
-        size: A4;
-        margin: 18mm;
-      }
-
+      @page { size: A4; margin: 15mm; }
+      * { box-sizing: border-box; }
       body {
         color: #0f172a;
         font-family: Arial, Helvetica, sans-serif;
-        font-size: 12px;
-        line-height: 1.55;
+        font-size: 10.5px;
+        line-height: 1.45;
+        margin: 0;
       }
-
-      h1 {
-        color: #0284c7;
-        font-size: 26px;
-        margin: 0 0 12px;
+      .page { break-after: page; }
+      .page:last-child { break-after: auto; }
+      .eyebrow {
+        color: #0369a1;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0;
+        margin: 0 0 6px;
+        text-transform: uppercase;
       }
-
+      h1 { color: #075985; font-size: 26px; margin: 0 0 6px; }
       h2 {
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid #cbd5e1;
         color: #075985;
-        font-size: 16px;
-        margin: 18px 0 8px;
-        padding-bottom: 4px;
+        font-size: 15px;
+        margin: 14px 0 7px;
+        padding-bottom: 3px;
       }
-
-      p {
-        margin: 0 0 9px;
-      }
-
+      h3 { color: #0f172a; font-size: 12px; margin: 10px 0 4px; }
+      p { margin: 0 0 7px; }
+      ul { margin: 5px 0 8px; padding-left: 18px; }
+      li { margin-bottom: 3px; }
       code {
         background: #f1f5f9;
-        border-radius: 4px;
-        padding: 1px 4px;
+        border-radius: 3px;
+        font-family: Consolas, monospace;
+        padding: 1px 3px;
       }
+      .meta {
+        border-left: 4px solid #0284c7;
+        color: #475569;
+        margin: 14px 0;
+        padding: 8px 12px;
+      }
+      .grid { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
+      .panel { border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px; }
+      .flow {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-family: Consolas, monospace;
+        line-height: 1.7;
+        margin: 8px 0 12px;
+        padding: 10px;
+        white-space: pre-wrap;
+      }
+      .checklist {
+        border-collapse: collapse;
+        margin-top: 6px;
+        width: 100%;
+      }
+      .checklist td {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 4px 5px;
+        vertical-align: top;
+      }
+      .done { color: #047857; font-weight: 700; width: 38px; }
+      .pending { color: #b45309; font-weight: 700; width: 52px; }
+      .screens { display: grid; gap: 7px; grid-template-columns: repeat(3, 1fr); }
+      figure { margin: 0; text-align: center; }
+      figure img {
+        border: 1px solid #cbd5e1;
+        display: block;
+        height: auto;
+        object-fit: contain;
+        object-position: top;
+        width: 100%;
+      }
+      figcaption { color: #475569; font-size: 9px; margin-top: 4px; }
+      .wide-shot {
+        border: 1px solid #cbd5e1;
+        display: block;
+        margin-top: 8px;
+        max-height: 118mm;
+        object-fit: contain;
+        width: 100%;
+      }
+      .footer-note { color: #64748b; font-size: 9px; margin-top: 12px; }
     </style>
   </head>
   <body>
-    <h1>VKU Field Survey - Technical Report</h1>
+    <section class="page">
+      <p class="eyebrow">Mobile Development Mini-Project 1</p>
+      <h1>VKU Field Survey</h1>
+      <p><strong>Offline Data Collection PWA and Capacitor</strong></p>
+      <div class="meta">
+        A local-first campus facility inspection system for classrooms,
+        laboratories, basements and remote buildings with weak or unavailable
+        connectivity.
+      </div>
 
-    <h2>Problem</h2>
-    <p>
-      Facility inspections on campus often happen in rooms or buildings where
-      the connection is weak or unavailable. A normal web form can lose data
-      during refresh, close, or network failure. VKU Field Survey solves this by
-      treating local storage as the first-class data source and syncing later.
-    </p>
+      <h2>1. Problem And Objective</h2>
+      <p>
+        A network-dependent inspection form can lose unfinished observations,
+        photos and submissions. This project treats IndexedDB as the primary
+        source of truth: it autosaves drafts, accepts submissions offline,
+        survives refresh/restart and synchronizes queued UUID records when the
+        API is reachable.
+      </p>
+      <p>
+        The professional extension adds inspector/session accountability,
+        category checklists, issue classification, GPS evidence, dashboard
+        metrics, detailed history and offline export while preserving the
+        original PWA and sync requirements.
+      </p>
 
-    <h2>Features</h2>
-    <p>
-      The application provides a mobile-first inspection workflow with Home, New
-      Survey, History, and Detail screens. Inspectors can choose a building,
-      floor, room, equipment category, condition rating, defect notes, and photo
-      evidence. Drafts autosave while typing. Submitted records show one of four
-      states: Draft, Pending Sync, Synced, or Sync Failed.
-    </p>
+      <h2>2. Feature Checklist</h2>
+      <table class="checklist">
+        <tr><td class="done">DONE</td><td>Standalone manifest, VKU theme, 192/512 icons and app-shell precache</td></tr>
+        <tr><td class="done">DONE</td><td>IndexedDB autosave, draft restore and schema-v1 compatibility</td></tr>
+        <tr><td class="done">DONE</td><td>Local profile, active session and immutable survey snapshots</td></tr>
+        <tr><td class="done">DONE</td><td>Six-step form, custom room, room type and 1-5 star rating</td></tr>
+        <tr><td class="done">DONE</td><td>Five category-specific checklists with OK/Issue/Not Checked</td></tr>
+        <tr><td class="done">DONE</td><td>Severity, priority, issue type, recommended action and evidence rules</td></tr>
+        <tr><td class="done">DONE</td><td>Photo/GPS evidence with web and Capacitor implementations</td></tr>
+        <tr><td class="done">DONE</td><td>Sequential offline queue, reconnect sync and idempotent UUID API</td></tr>
+        <tr><td class="done">DONE</td><td>Filters, Needs Action badge, dashboard and local CSV/JSON export</td></tr>
+        <tr><td class="pending">PENDING</td><td>Final APK build/install and physical-device verification</td></tr>
+        <tr><td class="pending">PENDING</td><td>Public HTTPS deployment URL</td></tr>
+      </table>
+    </section>
 
-    <h2>Technology Stack</h2>
-    <p>
-      The client uses React, TypeScript, Vite, Tailwind CSS, React Router,
-      IndexedDB through <code>idb</code>, <code>uuid</code>,
-      <code>vite-plugin-pwa</code>, and Capacitor plugins for Camera and
-      Network. The server uses Node.js, Express, CORS, Morgan, and a local JSON
-      file for simple mini-project storage.
-    </p>
+    <section class="page">
+      <p class="eyebrow">System Design</p>
+      <h1>Architecture And Offline Flow</h1>
 
-    <h2>Architecture</h2>
-    <p>
-      The project is organized as an npm workspace. The <code>client</code>
-      workspace owns the PWA and Capacitor app. The <code>server</code>
-      workspace owns the REST API. Both sides share the same survey contract:
-      each submitted survey has a UUID, location fields, category, rating,
-      notes, optional photo data URL, timestamps, and sync status.
-    </p>
-    <p>
-      The client writes every draft and submission to IndexedDB. The server
-      exposes <code>POST /api/surveys</code>, <code>GET /api/surveys</code>, and
-      <code>GET /api/surveys/:id</code>. The post endpoint is idempotent by
-      UUID, so a retry cannot create duplicate remote records.
-    </p>
+      <h2>3. Architecture</h2>
+      <div class="flow">React UI (shared PWA / Android code)
+  -> IndexedDB v2: surveys | profile | sessions
+  -> local-first submit: DRAFT -> PENDING_SYNC
+  -> foreground sync / Background Sync (sequential)
+  -> Express REST API
+  -> JSON storage (idempotent survey UUID) -> SYNCED</div>
 
-    <h2>Offline And IndexedDB</h2>
-    <p>
-      The multi-step form uses an autosave hook that writes the current draft
-      into IndexedDB after changes. When the New Survey screen opens, it
-      restores the latest Draft record or creates a new one. Submitted surveys
-      are stored locally before the app attempts any network request. This means
-      API failure, browser refresh, app restart, or offline mode cannot erase
-      the inspection.
-    </p>
+      <div class="grid">
+        <div class="panel">
+          <h3>Client</h3>
+          <p>React, TypeScript, Vite, Tailwind, React Router, <code>idb</code>, Workbox and Capacitor.</p>
+        </div>
+        <div class="panel">
+          <h3>Server</h3>
+          <p>Node.js, Express, nested payload validation and queued atomic JSON writes.</p>
+        </div>
+      </div>
 
-    <h2>Synchronization</h2>
-    <p>
-      When the user submits offline, the survey becomes Pending Sync. When the
-      user submits online, the client still saves locally first, then uploads to
-      the API. Only a confirmed API success marks the survey as Synced. If
-      upload fails, the item becomes Sync Failed and remains retryable.
-    </p>
-    <p>
-      The sync engine processes Pending Sync and Sync Failed records
-      sequentially. A lock prevents overlapping sync runs. Sync is triggered on
-      app start, browser online events, native Capacitor network events, manual
-      Retry Sync, and Background Sync where supported. Background Sync is best
-      effort; normal app startup and network events remain the required
-      fallback.
-    </p>
+      <h2>4. Data Model</h2>
+      <p>
+        Each Survey includes UUID/timestamps, sync status, inspector snapshot,
+        session snapshot, facility location, room type, category checklist,
+        rating, severity, priority, issue type, recommended action, notes,
+        optional Base64 photo and GPS status/evidence.
+      </p>
+      <p>
+        Snapshots preserve historical accountability when the local profile or
+        active session changes. IndexedDB version 2 adds <code>profile</code>
+        and <code>sessions</code>; a runtime normalizer safely reads original
+        version-1 survey records.
+      </p>
 
-    <h2>PWA And Capacitor</h2>
-    <p>
-      The Vite PWA plugin uses a custom service worker with Workbox precache to
-      store the app shell. After the first successful load, the app can reopen
-      with network disabled. The manifest uses the required app name, short
-      name, standalone display, theme color, and 192/512 icons.
-    </p>
-    <p>
-      Capacitor uses the same React build output from <code>client/dist</code>.
-      The app is configured with native Camera and Network plugins. On Android,
-      the photo button uses the native camera prompt. On the web, it falls back
-      to file selection with image resizing.
-    </p>
+      <h2>5. Reliability Rules</h2>
+      <ul>
+        <li>Draft changes are debounced and stored locally.</li>
+        <li>Submission persists locally before any API request.</li>
+        <li>Only a confirmed response changes status to Synced.</li>
+        <li>Failures retain all data and remain retryable.</li>
+        <li>A lock prevents overlapping foreground sync runs.</li>
+        <li>Queued records upload in creation order; repeated UUIDs do not duplicate server data.</li>
+        <li>Startup, browser/native network events and manual retry back up Background Sync.</li>
+      </ul>
 
-    <h2>Testing</h2>
-    <p>
-      The implemented check command runs TypeScript validation and production
-      builds for both workspaces. Manual acceptance testing should cover online
-      submit, offline form use, refresh recovery, offline submit, three queued
-      offline items, automatic sync after network restore, API failure retry
-      behavior, PWA offline boot, installability, Android APK, and native camera.
-    </p>
+      <h2>6. PWA And Native Bridge</h2>
+      <p>
+        Workbox precaches HTML, CSS, JavaScript, icons and manifest data for
+        offline boot. Browser evidence uses file input and Web Geolocation;
+        Android uses Capacitor Camera, Network and Geolocation. GPS failure is
+        recorded as unavailable and does not block a valid survey.
+      </p>
+    </section>
 
-    <h2>Conclusion</h2>
-    <p>
-      VKU Field Survey focuses on reliability before extras. The important
-      guarantee is that valid inspection data is saved locally first and never
-      depends on immediate internet access. The PWA and Android wrapper share
-      the same React codebase, while the Express API stays intentionally small
-      for demonstration and grading.
-    </p>
+    <section class="page">
+      <p class="eyebrow">Implemented Interface</p>
+      <h1>Key Screens</h1>
+      <div class="screens">
+        <figure>
+          <img src="screenshots/profile.png" alt="Local inspector profile" />
+          <figcaption>Offline inspector identity</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/new-survey.png" alt="Inspection review" />
+          <figcaption>Six-step inspection review and validation</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/history.png" alt="Survey history" />
+          <figcaption>Professional filters, sync and local export</figcaption>
+        </figure>
+      </div>
+      <p class="footer-note">
+        Screenshots are generated by the repeatable Chromium E2E workflow at a
+        390 x 844 mobile viewport.
+      </p>
+    </section>
+
+    <section class="page">
+      <p class="eyebrow">Verification And Delivery</p>
+      <h1>Results</h1>
+      <img class="wide-shot" src="screenshots/home.png" alt="Operational dashboard" />
+
+      <h2>7. Automated Verification</h2>
+      <div class="grid">
+        <div class="panel">
+          <h3>Unit / Integration</h3>
+          <p>
+            Business rules, High/Critical photo requirement, old-schema
+            normalization, IndexedDB profile/session persistence, immutable
+            snapshots, queue ordering and server validation.
+          </p>
+        </div>
+        <div class="panel">
+          <h3>Browser E2E</h3>
+          <p>
+            Profile refresh, online submit, offline Pending Sync, reconnect
+            auto-sync, GPS capture, CSV download and service-worker offline boot.
+          </p>
+        </div>
+      </div>
+
+      <h2>8. Delivery Status</h2>
+      <p>
+        The source code, screenshots and this 4-page report are ready locally.
+        The web/PWA flow is stable and tested before APK work, following the
+        required implementation order. Remaining external tasks are publishing
+        the HTTPS PWA/public repository and building/installing the APK in an
+        Android SDK device or emulator environment.
+      </p>
+
+      <h2>9. Conclusion</h2>
+      <p>
+        VKU Field Survey meets the original offline-first learning objectives
+        and now models a credible campus inspection process. Its core guarantee
+        remains unchanged: valid field data is saved locally first and never
+        depends on immediate connectivity.
+      </p>
+    </section>
   </body>
 </html>
