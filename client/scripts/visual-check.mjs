@@ -11,6 +11,7 @@ const rootDir = resolve(clientDir, "..");
 const screenshotDir = resolve(rootDir, "docs", "screenshots");
 const apiUrl = "http://127.0.0.1:4010";
 const appUrl = "http://127.0.0.1:4173";
+const adminAccessKey = process.env.ADMIN_ACCESS_KEY || "VKU-ADMIN-2026";
 const temporaryServerDir = await mkdtemp(resolve(tmpdir(), "vku-survey-e2e-"));
 const children = [];
 let browser;
@@ -136,6 +137,11 @@ try {
   await page.getByText("v2").waitFor();
 
   await page.goto(`${appUrl}/admin`);
+  await page.getByLabel("Admin access key").fill("wrong-admin-key");
+  await page.getByRole("button", { name: "Unlock admin" }).click();
+  await page.getByRole("alert").waitFor();
+  await page.getByLabel("Admin access key").fill(adminAccessKey);
+  await page.getByRole("button", { name: "Unlock admin" }).click();
   await page.getByText("V302").first().waitFor();
   await page.getByRole("button", { name: /V302/ }).click();
   const adminDetail = page.locator("aside");

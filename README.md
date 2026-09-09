@@ -20,6 +20,7 @@ Offline-first facility inspection and review system for VKU campus. Inspectors c
 - Autosaved survey edits with stable UUIDs, version history and automatic re-queue.
 - Separate sync and review workflows (`OPEN`, `IN_REVIEW`, `RESOLVED`, `REJECTED`).
 - Admin dashboard with central filters, evidence detail, assignment and resolution notes.
+- Admin access gate with server-validated key for PWA and Capacitor builds.
 - Google Sheets UUID/version upsert, AuditLog and optional Google Drive photo storage.
 - Search/filter by status, category, severity, priority, inspector and date.
 - Local CSV/JSON export that remains available offline.
@@ -74,7 +75,7 @@ Local URLs:
 
 Open Profile first and enter the inspector identity and active session. Profile/session data remains local to the current device. Photos are resized and stored as Base64 data URLs in IndexedDB; the Apps Script bridge moves synchronized evidence to Drive and stores its URL in Sheets.
 
-Google Sheets is optional for local development. To enable the central Admin data source, copy `docs/google-apps-script.gs` into a Sheet-bound Apps Script project, run `setupSheets`, deploy it as a Web App, and set `SHEETS_WEBHOOK_URL` plus `SHEETS_WEBHOOK_SECRET`. The deployed Vercel function already has the course-demo webhook fallback; production projects should use environment variables instead.
+Google Sheets is optional for local development. To enable the central Admin data source, copy `docs/google-apps-script.gs` into a Sheet-bound Apps Script project, run `setupSheets`, deploy it as a Web App, and set `SHEETS_WEBHOOK_URL` plus `SHEETS_WEBHOOK_SECRET`. The deployed Vercel function already has the course-demo webhook fallback; production projects should use environment variables instead. The demo Admin key is `VKU-ADMIN-2026`; set `ADMIN_ACCESS_KEY` in `.env`/Vercel to replace it.
 
 ## Commands
 
@@ -101,10 +102,12 @@ GET  /api/surveys
 GET  /api/surveys/:id
 POST /api/surveys
 PUT  /api/surveys/:id
-PATCH /api/surveys/:id/review
+POST /api/admin/verify
+GET  /api/admin/surveys          (X-Admin-Key required)
+PATCH /api/admin/surveys/:id/review (X-Admin-Key required)
 ```
 
-`POST` creates version 1, while `PUT` accepts a newer version for the same UUID. Equal/older retries return the existing record. `PATCH` changes only administrator-owned review fields. All endpoints validate the business payload before persistence.
+`POST` creates version 1, while `PUT` accepts a newer version for the same UUID. Equal/older retries return the existing record. Admin review routes require the server-validated access key and change only administrator-owned review fields. All endpoints validate the business payload before persistence.
 
 ## Manual Acceptance Test
 
@@ -116,11 +119,12 @@ PATCH /api/surveys/:id/review
 6. Stop the API and confirm a failed upload remains local as `SYNC_FAILED`.
 7. Set severity to High or Critical and confirm notes/photo rules are enforced.
 8. Edit a synced survey, refresh during editing, save and confirm the UUID stays the same while version increments.
-9. Open Admin, assign the record, add a note and move it to In Review/Resolved.
-10. Confirm one UUID row and a new audit event appear in Google Sheets; photo evidence opens from Drive.
-11. Export filtered History/Admin data as CSV and JSON.
-12. Reopen the installed PWA offline after one successful online visit.
-13. On Android, verify native Camera, Network and Geolocation permissions/plugins.
+9. Open Admin, confirm a wrong key is rejected, then enter `VKU-ADMIN-2026`.
+10. Assign the record, add a note and move it to In Review/Resolved.
+11. Confirm one UUID row and a new audit event appear in Google Sheets; photo evidence opens from Drive.
+12. Export filtered History/Admin data as CSV and JSON.
+13. Reopen the installed PWA offline after one successful online visit.
+14. On Android, verify native Camera, Network and Geolocation permissions/plugins plus the Admin key gate.
 
 ## Android
 

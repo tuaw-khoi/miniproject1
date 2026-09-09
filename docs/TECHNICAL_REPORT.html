@@ -116,7 +116,8 @@
         The professional extension adds inspector/session accountability,
         category checklists, issue classification, versioned edits, GPS
         evidence, Admin review and Google Sheets reporting while preserving
-        the original PWA and sync requirements.
+        the original PWA and sync requirements. A server-validated Admin
+        access key gates the review screen in both the PWA and APK.
       </p>
 
       <h2>2. Feature Checklist</h2>
@@ -132,6 +133,7 @@
         <tr><td class="done">DONE</td><td>Filters, Needs Action badge, dashboard and local CSV/JSON export</td></tr>
         <tr><td class="done">DONE</td><td>Stable-UUID edits, version history and refresh-safe edit drafts</td></tr>
         <tr><td class="done">DONE</td><td>Admin assignment, review status, notes and central export</td></tr>
+        <tr><td class="done">DONE</td><td>Server-validated Admin access key gate for PWA and APK</td></tr>
         <tr><td class="done">DONE</td><td>Google Sheets/Drive upsert, evidence URL and AuditLog</td></tr>
         <tr><td class="done">DONE</td><td>Java 21 APK build and public GitHub Release download</td></tr>
         <tr><td class="done">DONE</td><td>Public HTTPS PWA and same-origin Vercel API deployment</td></tr>
@@ -158,7 +160,7 @@
         </div>
         <div class="panel">
           <h3>Server</h3>
-          <p>Node.js, Express/Vercel API, version validation and an Apps Script central bridge.</p>
+          <p>Node.js, Express/Vercel API, Admin key middleware, version validation and an Apps Script central bridge.</p>
         </div>
       </div>
 
@@ -248,7 +250,7 @@
           <h3>Browser E2E</h3>
           <p>
             Profile refresh, edit versioning, Admin review, online/offline
-            submit, reconnect sync, GPS, export and offline boot.
+            submit, reconnect sync, GPS, export, wrong-key rejection and offline boot.
           </p>
         </div>
       </div>
@@ -261,7 +263,8 @@
         Release provides the signed Android APK. Production verification covers
         deep links, CORS, versioned idempotent sync, Google Sheets central
         records, service-worker offline reload and APK metadata. Physical-device
-        plugin testing remains.
+        plugin testing remains. The demo Admin key is <code>VKU-ADMIN-2026</code>
+        and can be replaced through <code>ADMIN_ACCESS_KEY</code>.
       </p>
 
       <h2>9. Conclusion</h2>

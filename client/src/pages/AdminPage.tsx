@@ -4,19 +4,26 @@ import {
   Download,
   Eye,
   FileJson,
+  KeyRound,
+  LockKeyhole,
   RefreshCw,
   Search,
   ShieldCheck,
   UserRound
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ReviewStatusBadge } from "../components/ReviewStatusBadge";
 import { patchSurvey } from "../db/indexedDB";
 import type { NetworkState } from "../hooks/useNetwork";
 import {
   getRemoteSurveys,
-  updateRemoteSurveyReview
+  updateRemoteSurveyReview,
+  verifyAdminAccessKey
 } from "../services/api";
+import {
+  clearStoredAdminAccessKey,
+  getStoredAdminAccessKey
+} from "../services/adminAccess";
 import { exportSurveys } from "../services/exportService";
 import { surveyStore } from "../stores/surveyStore";
 import {
@@ -40,6 +47,100 @@ type SeverityFilter = "ALL" | Severity;
 type PriorityFilter = "ALL" | Priority;
 
 export function AdminPage({ network }: { network: NetworkState }) {
+  return <AdminAccessGate network={network} />;
+}
+
+function AdminAccessGate({ network }: { network: NetworkState }) {
+  const [unlocked, setUnlocked] = useState(() => Boolean(getStoredAdminAccessKey()));
+  const [key, setKey] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string>();
+
+  if (unlocked) {
+    return (
+      <AdminWorkspace
+        network={network}
+        onLock={() => {
+          clearStoredAdminAccessKey();
+          setUnlocked(false);
+          setKey("");
+        }}
+      />
+    );
+  }
+
+  const unlock = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setChecking(true);
+    setError(undefined);
+
+    try {
+      await verifyAdminAccessKey(key);
+      setUnlocked(true);
+      setKey("");
+    } catch (unlockError) {
+      setError(
+        unlockError instanceof Error
+          ? unlockError.message
+          : "The admin key is invalid."
+      );
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <section className="mx-auto max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-vku-50 text-vku-700">
+        <KeyRound className="h-6 w-6" aria-hidden="true" />
+      </div>
+      <h1 className="mt-4 text-xl font-bold text-slate-950">Admin access</h1>
+      <p className="mt-1 text-sm leading-6 text-slate-600">
+        Enter the authorized key to view and manage central inspection records.
+      </p>
+      <form className="mt-5 space-y-3" onSubmit={(event) => void unlock(event)}>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold text-slate-700">
+            Admin access key
+          </span>
+          <input
+            aria-label="Admin access key"
+            type="password"
+            value={key}
+            onChange={(event) => setKey(event.target.value)}
+            autoComplete="current-password"
+            placeholder="Enter key"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm"
+          />
+        </label>
+        {error ? (
+          <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {error}
+          </p>
+        ) : null}
+        <button
+          type="submit"
+          disabled={checking || !network.connected || !key.trim()}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-vku-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          <LockKeyhole className="h-4 w-4" aria-hidden="true" />
+          {checking ? "Checking key..." : "Unlock admin"}
+        </button>
+        {!network.connected ? (
+          <p className="text-xs text-slate-500">Connect to the network to verify the admin key.</p>
+        ) : null}
+      </form>
+    </section>
+  );
+}
+
+function AdminWorkspace({
+  network,
+  onLock
+}: {
+  network: NetworkState;
+  onLock: () => void;
+}) {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -67,7 +168,7 @@ export function AdminPage({ network }: { network: NetworkState }) {
     setError(undefined);
 
     try {
-      const remote = await getRemoteSurveys();
+      const remote = await getRemoteSurveys({ adminOnly: true });
       setSurveys(remote);
       setSelectedId((current) =>
         current && remote.some((survey) => survey.id === current)
@@ -186,6 +287,14 @@ export function AdminPage({ network }: { network: NetworkState }) {
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
           Refresh
+        </button>
+        <button
+          type="button"
+          onClick={onLock}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+        >
+          <LockKeyhole className="h-4 w-4" aria-hidden="true" />
+          Lock
         </button>
       </section>
 

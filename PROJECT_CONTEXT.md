@@ -330,6 +330,7 @@ The implemented extension keeps the original offline-first lifecycle and adds:
 - Google Sheets upserts by survey UUID/version, keeps one row per survey, stores
   audit events separately, and can move Base64 evidence into Google Drive.
 
-The extension does not add authentication or make Google Sheets a dependency
-for offline data entry. IndexedDB remains the durable device-side source of
-truth and failed central delivery remains retryable.
+The extension adds a lightweight server-validated Admin access key for the
+course demo; it is an access gate, not full user authentication. Google Sheets
+is not a dependency for offline data entry. IndexedDB remains the durable
+device-side source of truth and failed central delivery remains retryable.

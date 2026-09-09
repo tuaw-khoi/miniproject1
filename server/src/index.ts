@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import morgan from "morgan";
+import { isValidAdminAccessKey } from "./adminAuth.js";
 import {
   isSheetBridgeConfigured,
   listSurveysFromSheet,
@@ -29,7 +30,25 @@ app.get("/health", (_request, response) => {
   });
 });
 
-app.get("/api/surveys", async (_request, response, next) => {
+const requireAdminAccess: express.RequestHandler = (request, response, next) => {
+  if (!isValidAdminAccessKey(request.header("x-admin-key"))) {
+    response.status(401).json({ error: "Valid admin access key is required." });
+    return;
+  }
+
+  next();
+};
+
+app.post("/api/admin/verify", (request, response) => {
+  if (!isValidAdminAccessKey(request.body?.key)) {
+    response.status(401).json({ error: "Invalid admin access key." });
+    return;
+  }
+
+  response.json({ ok: true });
+});
+
+const listSurveys: express.RequestHandler = async (_request, response, next) => {
   try {
     const surveys = (await listSurveysFromSheet()) ?? (await readSurveys());
     response.json(
@@ -38,9 +57,12 @@ app.get("/api/surveys", async (_request, response, next) => {
   } catch (error) {
     next(error);
   }
-});
+};
 
-app.get("/api/surveys/:id", async (request, response, next) => {
+app.get("/api/surveys", listSurveys);
+app.get("/api/admin/surveys", requireAdminAccess, listSurveys);
+
+const getSurvey: express.RequestHandler = async (request, response, next) => {
   try {
     const surveys = (await listSurveysFromSheet()) ?? (await readSurveys());
     const survey = surveys.find((item) => item.id === request.params.id);
@@ -56,7 +78,10 @@ app.get("/api/surveys/:id", async (request, response, next) => {
   } catch (error) {
     next(error);
   }
-});
+};
+
+app.get("/api/surveys/:id", getSurvey);
+app.get("/api/admin/surveys/:id", requireAdminAccess, getSurvey);
 
 const saveSurvey: express.RequestHandler = async (request, response, next) => {
   try {
@@ -87,7 +112,7 @@ const saveSurvey: express.RequestHandler = async (request, response, next) => {
 app.post("/api/surveys", saveSurvey);
 app.put("/api/surveys/:id", saveSurvey);
 
-app.patch("/api/surveys/:id/review", async (request, response, next) => {
+const reviewSurvey: express.RequestHandler = async (request, response, next) => {
   try {
     const result = validateReviewUpdate(request.body);
     if (!result.valid || !result.update) {
@@ -97,16 +122,18 @@ app.patch("/api/surveys/:id/review", async (request, response, next) => {
       return;
     }
 
+    const surveyId = String(request.params.id);
+
     const localSurvey = await updateSurveyReview(
-      request.params.id,
+      surveyId,
       result.update
     );
-    await updateReviewInSheet(request.params.id, result.update);
+    await updateReviewInSheet(surveyId, result.update);
 
     const remoteSurvey = localSurvey
       ? undefined
       : (await listSurveysFromSheet())?.find(
-          (survey) => survey.id === request.params.id
+          (survey) => survey.id === surveyId
         );
     const survey = localSurvey ?? remoteSurvey;
 
@@ -128,7 +155,10 @@ app.patch("/api/surveys/:id/review", async (request, response, next) => {
   } catch (error) {
     next(error);
   }
-});
+};
+
+app.patch("/api/surveys/:id/review", requireAdminAccess, reviewSurvey);
+app.patch("/api/admin/surveys/:id/review", requireAdminAccess, reviewSurvey);
 
 app.use(
   (

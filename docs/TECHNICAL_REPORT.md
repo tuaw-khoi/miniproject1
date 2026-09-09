@@ -4,7 +4,7 @@
 
 VKU facility inspectors work in classrooms, laboratories, basements and remote buildings where Wi-Fi or mobile data may be unavailable. A network-dependent form risks losing observations, photos and unfinished work. VKU Field Survey therefore treats local storage as the source of truth: the app boots offline after its first visit, autosaves drafts, accepts offline submissions and synchronizes later.
 
-The extended version adds a professional inspection and review workflow while preserving the original rubric. It uses local inspector/session context, category checklists, issue classification, GPS/photo evidence, editable versioned records, an Admin review dashboard and Google Sheets/Drive central reporting. Authentication remains outside this mini-project.
+The extended version adds a professional inspection and review workflow while preserving the original rubric. It uses local inspector/session context, category checklists, issue classification, GPS/photo evidence, editable versioned records, an Admin review dashboard and Google Sheets/Drive central reporting. A server-validated Admin access key gate protects the review screen in both the PWA and Capacitor APK; full account authentication remains outside this mini-project.
 
 ## 2. Feature Checklist
 
@@ -21,6 +21,7 @@ The extended version adds a professional inspection and review workflow while pr
 - [x] History filters, Needs Action status, dashboard and CSV/JSON export.
 - [x] Stable-UUID edits, local edit recovery and version history.
 - [x] Admin assignment, notes and Open/In Review/Resolved/Rejected workflow.
+- [x] Server-validated Admin access key gate for the PWA and APK.
 - [x] Google Sheets UUID/version upsert, Drive photo URL and AuditLog.
 - [x] REST API with idempotent POST, revision PUT and review PATCH.
 - [x] Capacitor project and Camera, Network and Geolocation integration.
@@ -37,7 +38,7 @@ React UI
   -> IndexedDB v3: surveys | profile | sessions | surveyEdits
   -> local-first submit: DRAFT -> PENDING_SYNC
   -> foreground sync / Background Sync (sequential)
-  -> POST/PUT /api/surveys
+  -> POST/PUT /api/surveys; Admin key -> /api/admin/*
   -> Apps Script -> Google Sheets + Drive -> SYNCED
 ```
 
@@ -59,4 +60,4 @@ The Android project declares Internet, Camera and coarse/fine location permissio
 
 Automated tests cover business rules, migration defaults, IndexedDB snapshots/edit drafts, queue order and server/review validation. Chromium E2E verifies profile recovery, online/offline submit, edit recovery, version 2 synchronization, Admin review, reconnect auto-sync, GPS, CSV and offline boot. Production checks cover Vercel routing, service worker behavior and idempotent API requests.
 
-The deliverables are published at `https://miniproject1-client.vercel.app`, `https://github.com/tuaw-khoi/miniproject1`, and the `apk-latest` GitHub Release. The remaining manual task is installing the APK on a physical Android phone and exercising native Camera, Network and GPS permissions.
+The deliverables are published at `https://miniproject1-client.vercel.app`, `https://github.com/tuaw-khoi/miniproject1`, and the `apk-latest` GitHub Release. The demo Admin key is configured as `VKU-ADMIN-2026` and can be replaced with `ADMIN_ACCESS_KEY`. The remaining manual task is installing the APK on a physical Android phone and exercising native Camera, Network, GPS and Admin access permissions.

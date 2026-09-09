@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  DEFAULT_ADMIN_ACCESS_KEY,
+  isValidAdminAccessKey
+} from "./adminAuth.js";
 import { validateReviewUpdate, validateSurveyPayload } from "./types.js";
 
 const validSurvey = {
@@ -77,4 +81,10 @@ test("validates admin review updates", () => {
   assert.equal(accepted.valid, true);
   assert.equal(accepted.update?.assignedTo, "Facilities Team");
   assert.equal(rejected.valid, false);
+});
+
+test("accepts only the configured admin access key", () => {
+  assert.equal(isValidAdminAccessKey(DEFAULT_ADMIN_ACCESS_KEY), true);
+  assert.equal(isValidAdminAccessKey("wrong-admin-key"), false);
+  assert.equal(isValidAdminAccessKey(""), false);
 });

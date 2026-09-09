@@ -101,10 +101,13 @@ const TEMP_FILE = `${DATA_DIR}/surveys.json.tmp`;
 const DEFAULT_SHEETS_WEBHOOK_URL =
   "https://script.google.com/macros/s/AKfycbzErqfZstJb23XhZF3ZPnaSO6v2cU6GmWFbiq_6Ux1JZ5_daHQT-p_xHXXaxgidqSBu9w/exec";
 const DEFAULT_SHEETS_WEBHOOK_SECRET = "vku-survey-change-this-secret";
+const DEFAULT_ADMIN_ACCESS_KEY = "VKU-ADMIN-2026";
 const SHEETS_WEBHOOK_URL =
   process.env.SHEETS_WEBHOOK_URL?.trim() || DEFAULT_SHEETS_WEBHOOK_URL;
 const SHEETS_WEBHOOK_SECRET =
   process.env.SHEETS_WEBHOOK_SECRET?.trim() || DEFAULT_SHEETS_WEBHOOK_SECRET;
+const ADMIN_ACCESS_KEY =
+  process.env.ADMIN_ACCESS_KEY?.trim() || DEFAULT_ADMIN_ACCESS_KEY;
 
 let writeQueue = Promise.resolve();
 
@@ -236,6 +239,10 @@ function parseReviewUpdate(value: unknown): ReviewUpdate | undefined {
     adminNote: isString(value.adminNote) ? value.adminNote.trim() : "",
     actor: isString(value.actor) && value.actor.trim() ? value.actor.trim() : "Admin"
   };
+}
+
+function isValidAdminAccessKey(value: unknown): boolean {
+  return typeof value === "string" && value.trim() === ADMIN_ACCESS_KEY;
 }
 
 async function ensureDataFile(): Promise<void> {
@@ -429,7 +436,7 @@ function sheetRecordToSurvey(record: Record<string, string>): Survey {
 const RESPONSE_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, X-Admin-Key",
   "Cache-Control": "no-store"
 };
 
@@ -456,13 +463,35 @@ export default {
         });
       }
 
-      if (request.method === "GET" && route === "surveys") {
+      if (request.method === "POST" && route === "admin/verify") {
+        const body = (await request.json().catch(() => undefined)) as {
+          key?: unknown;
+        } | undefined;
+        if (!isValidAdminAccessKey(body?.key)) {
+          return json({ error: "Invalid admin access key." }, 401);
+        }
+        return json({ ok: true });
+      }
+
+      const isAdminRoute =
+        route === "admin/surveys" || route.startsWith("admin/surveys/");
+      if (isAdminRoute && !isValidAdminAccessKey(request.headers.get("x-admin-key"))) {
+        return json({ error: "Valid admin access key is required." }, 401);
+      }
+
+      if (
+        request.method === "GET" &&
+        (route === "surveys" || route === "admin/surveys")
+      ) {
         const surveys = await listSurveysFromSheet();
         return json(surveys.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       }
 
       if (request.method === "PATCH" && route.endsWith("/review")) {
-        const id = decodeURIComponent(route.slice("surveys/".length, -"/review".length));
+        const prefix = route.startsWith("admin/surveys/")
+          ? "admin/surveys/"
+          : "surveys/";
+        const id = decodeURIComponent(route.slice(prefix.length, -"/review".length));
         const update = parseReviewUpdate(
           (await request.json().catch(() => undefined)) as unknown
         );
@@ -494,8 +523,14 @@ export default {
         return json(result.survey, isCreate && result.created ? 201 : 200);
       }
 
-      if (request.method === "GET" && route.startsWith("surveys/")) {
-        const id = decodeURIComponent(route.slice("surveys/".length));
+      if (
+        request.method === "GET" &&
+        (route.startsWith("surveys/") || route.startsWith("admin/surveys/"))
+      ) {
+        const prefix = route.startsWith("admin/surveys/")
+          ? "admin/surveys/"
+          : "surveys/";
+        const id = decodeURIComponent(route.slice(prefix.length));
         const survey = (await listSurveysFromSheet()).find((item) => item.id === id);
         return survey ? json(survey) : json({ error: "Survey not found." }, 404);
       }

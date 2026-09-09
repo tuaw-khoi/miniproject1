@@ -22,6 +22,7 @@
 - [x] Stable-UUID survey editing with version history and automatic re-queue.
 - [x] Independent sync status and Admin review status.
 - [x] Admin dashboard, central filters, assignment, notes and resolution workflow.
+- [x] Server-validated Admin access key gate for PWA and Capacitor builds.
 - [x] Google Sheets/Drive Apps Script bridge with UUID/version upsert and AuditLog.
 - [x] `PUT` survey revision and `PATCH` review API endpoints.
 - [x] Capacitor Camera, Network and Geolocation dependencies/permissions.
@@ -29,7 +30,7 @@
 
 ## Verified
 
-- [x] `npm test`: 5 server tests and 9 client tests pass.
+- [x] `npm test`: 6 server tests and 9 client tests pass.
 - [x] `npm run check`: server/client typecheck and production builds pass.
 - [x] Chromium E2E profile persistence and immutable local setup.
 - [x] Chromium E2E online submission becomes `SYNCED`.
@@ -37,6 +38,7 @@
 - [x] Chromium E2E network restoration automatically syncs the queue.
 - [x] Chromium E2E GPS capture and offline CSV export.
 - [x] Chromium E2E edit autosave/recovery, version 2 sync and Admin review.
+- [x] Chromium E2E rejects a wrong Admin key and unlocks with the configured key.
 - [x] Chromium E2E PWA close/reopen while offline.
 - [x] E2E uses temporary API storage and does not alter repository survey data.
 - [x] `npm run android:sync` copies the final PWA and registers native plugins.
