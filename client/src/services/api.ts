@@ -1,6 +1,8 @@
 import { normalizeSurvey, type ReviewStatus, type Survey } from "../types/survey";
 import { API_BASE_URL } from "./apiConfig";
 
+const API_TIMEOUT_MS = 35_000;
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -14,7 +16,7 @@ async function fetchJson<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  const timeout = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {

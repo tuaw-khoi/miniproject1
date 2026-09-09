@@ -80,7 +80,7 @@ export async function listSurveysFromSheet(): Promise<Survey[] | undefined> {
   url.searchParams.set("secret", WEBHOOK_SECRET);
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(20_000)
+    signal: AbortSignal.timeout(25_000)
   });
 
   if (!response.ok) {
@@ -105,7 +105,7 @@ async function postToSheet(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     redirect: "follow",
-    signal: AbortSignal.timeout(25_000)
+    signal: AbortSignal.timeout(30_000)
   });
 
   if (!response.ok) {

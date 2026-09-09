@@ -303,7 +303,7 @@ async function postToSheet(payload: Record<string, unknown>): Promise<SheetRespo
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     redirect: "follow",
-    signal: AbortSignal.timeout(25_000)
+    signal: AbortSignal.timeout(30_000)
   });
   if (!response.ok) throw new Error(`Google Sheets write failed with ${response.status}.`);
   const body = (await response.json()) as SheetResponse;
@@ -346,7 +346,7 @@ async function listSurveysFromSheet(): Promise<Survey[]> {
   url.searchParams.set("secret", SHEETS_WEBHOOK_SECRET);
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(20_000)
+    signal: AbortSignal.timeout(25_000)
   });
   if (!response.ok) throw new Error(`Google Sheets list failed with ${response.status}.`);
   const body = (await response.json()) as SheetResponse;
