@@ -488,6 +488,10 @@ export default {
       }
 
       if (request.method === "PATCH" && route.endsWith("/review")) {
+        if (!isValidAdminAccessKey(request.headers.get("x-admin-key"))) {
+          return json({ error: "Valid admin access key is required." }, 401);
+        }
+
         const prefix = route.startsWith("admin/surveys/")
           ? "admin/surveys/"
           : "surveys/";
