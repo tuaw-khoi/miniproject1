@@ -286,7 +286,11 @@ export function AdminPage({ network }: { network: NetworkState }) {
             ))}
           </section>
           {selected ? (
-            <AdminDetail key={`${selected.id}-${selected.reviewStatus}-${selected.adminNote ?? ""}`} survey={selected} onSave={saveReview} />
+            <AdminDetail
+              key={`${selected.id}-${selected.version}-${selected.reviewStatus}-${selected.assignedTo ?? ""}-${selected.adminNote ?? ""}`}
+              survey={selected}
+              onSave={saveReview}
+            />
           ) : null}
         </div>
       ) : !error ? (
