@@ -21,8 +21,9 @@ The extended version adds a professional inspection workflow while preserving th
 - [x] History filters, Needs Action status, dashboard and CSV/JSON export.
 - [x] Express REST API with idempotent POST by UUID.
 - [x] Capacitor project and Camera, Network and Geolocation integration.
-- [ ] Final Android APK build/install and physical-device verification.
-- [ ] Public HTTPS deployment URL.
+- [x] Java 21 Android APK build and public GitHub release download.
+- [x] Public HTTPS PWA and same-origin Vercel API deployment.
+- [ ] Final physical-device Camera/Network/GPS verification.
 
 ## 3. Architecture And Data
 
@@ -49,10 +50,10 @@ The foreground sync engine prevents overlapping runs and sends queued items in c
 
 `vite-plugin-pwa` builds a custom service worker that precaches HTML, CSS, JavaScript, icons and the web manifest. The manifest uses standalone display mode and the required VKU colors/icons. Browser photos use file capture plus client resizing; Android uses Capacitor Camera. GPS uses browser Geolocation in the PWA and Capacitor Geolocation natively. A failed GPS capture records `unavailable` without blocking an otherwise valid offline survey.
 
-The Android project declares Internet, Camera and coarse/fine location permissions. Final APK compilation remains the last phase because it requires Android SDK configuration and device/emulator testing.
+The Android project declares Internet, Camera and coarse/fine location permissions. Java 21/Gradle builds a signed debug APK with package `edu.vku.fieldsurvey`, minimum SDK 23 and target SDK 35. GitHub Actions also compiles and publishes the APK, avoiding any dependency on Android Studio on the development machine.
 
 ## 6. Verification And Result
 
-Automated tests cover client business rules, old-schema normalization, IndexedDB profile/session persistence, immutable snapshots, queue order and server payload validation. A Chromium E2E scenario verifies profile recovery, online submit, offline submit, reconnect auto-sync, GPS capture, CSV download and service-worker offline boot. `npm test` and `npm run check` are the primary repeatable checks.
+Automated tests cover client business rules, old-schema normalization, IndexedDB profile/session persistence, immutable snapshots, queue order and server payload validation. A Chromium E2E scenario verifies profile recovery, online submit, offline submit, reconnect auto-sync, GPS capture, CSV download and service-worker offline boot. Production checks verify Vercel deep links, service-worker offline reload, CORS and idempotent API requests. The downloaded APK passes signature/package metadata verification.
 
-The result remains centered on the original learning objectives while presenting a fuller real-world workflow. The remaining delivery tasks are an HTTPS deployment, public repository confirmation and final APK build/install with native Camera, Network and GPS checks.
+The deliverables are published at `https://miniproject1-client.vercel.app`, `https://github.com/tuaw-khoi/miniproject1`, and the `apk-latest` GitHub Release. The remaining manual task is installing the APK on a physical Android phone and exercising native Camera, Network and GPS permissions.

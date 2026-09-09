@@ -130,8 +130,9 @@
         <tr><td class="done">DONE</td><td>Photo/GPS evidence with web and Capacitor implementations</td></tr>
         <tr><td class="done">DONE</td><td>Sequential offline queue, reconnect sync and idempotent UUID API</td></tr>
         <tr><td class="done">DONE</td><td>Filters, Needs Action badge, dashboard and local CSV/JSON export</td></tr>
-        <tr><td class="pending">PENDING</td><td>Final APK build/install and physical-device verification</td></tr>
-        <tr><td class="pending">PENDING</td><td>Public HTTPS deployment URL</td></tr>
+        <tr><td class="done">DONE</td><td>Java 21 APK build and public GitHub Release download</td></tr>
+        <tr><td class="done">DONE</td><td>Public HTTPS PWA and same-origin Vercel API deployment</td></tr>
+        <tr><td class="pending">PENDING</td><td>Physical-device Camera, Network and GPS verification</td></tr>
       </table>
     </section>
 
@@ -190,6 +191,11 @@
         Android uses Capacitor Camera, Network and Geolocation. GPS failure is
         recorded as unavailable and does not block a valid survey.
       </p>
+      <p>
+        Java 21/Gradle builds package <code>edu.vku.fieldsurvey</code> for
+        Android SDK 23-35. GitHub Actions signs and publishes the debug APK,
+        so Android Studio is not required on the development machine.
+      </p>
     </section>
 
     <section class="page">
@@ -241,11 +247,12 @@
 
       <h2>8. Delivery Status</h2>
       <p>
-        The source code, screenshots and this 4-page report are ready locally.
-        The web/PWA flow is stable and tested before APK work, following the
-        required implementation order. Remaining external tasks are publishing
-        the HTTPS PWA/public repository and building/installing the APK in an
-        Android SDK device or emulator environment.
+        The PWA and same-origin API are live at
+        <code>miniproject1-client.vercel.app</code>. Source is public at
+        <code>github.com/tuaw-khoi/miniproject1</code>; the <code>apk-latest</code>
+        Release provides the signed Android APK. Production verification covers
+        deep links, CORS, idempotent sync, service-worker offline reload and APK
+        signature/package metadata. Physical-device plugin testing remains.
       </p>
 
       <h2>9. Conclusion</h2>

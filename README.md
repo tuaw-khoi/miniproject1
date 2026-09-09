@@ -52,7 +52,7 @@ docs/                   Report, implementation checklist and screenshots
 - Node.js 20 or newer
 - npm 10 or newer
 - Chromium for the optional browser E2E check
-- Android Studio and Android SDK for APK builds
+- Java 21 and Android SDK for local APK builds
 - GitHub Actions can build the debug APK when the local Android SDK is unavailable
 
 ## Setup

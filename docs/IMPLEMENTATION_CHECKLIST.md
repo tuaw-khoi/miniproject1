@@ -39,10 +39,13 @@
 - [x] Android assets embed the public HTTPS API instead of `localhost`.
 - [x] Public GitHub repository: `https://github.com/tuaw-khoi/miniproject1`.
 - [x] Connected Vercel production URL: `https://miniproject1-client.vercel.app`.
+- [x] Public Vercel API health, CORS, POST, duplicate UUID and detail GET verified.
+- [x] Production service worker controls the PWA and reloads it offline.
+- [x] Local Java 21/SDK build creates a valid signed 7.1 MB debug APK.
+- [x] GitHub Actions Java 21 build, artifact upload and APK release pass.
+- [x] Public APK downloaded and verified with APK Signature Scheme v1/v2.
 
 ## Needs External Setup
 
-- [ ] `npm run android:apk` requires Android SDK configuration through `ANDROID_HOME` or `client/android/local.properties`.
-- [ ] Confirm the post-push GitHub Actions build and release asset complete successfully.
 - [ ] Install the APK on an emulator/device and manually verify Camera, Network and GPS permissions.
 - [ ] Manually repeat the canonical offline/reconnect flow on the physical phone.
