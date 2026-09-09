@@ -12,14 +12,16 @@ import {
   normalizeSurvey,
   type Survey,
   type SurveyCounts,
+  type SurveyEditDraft,
   type SurveyStatus
 } from "../types/survey";
 
 export const DB_NAME = "vku-field-survey";
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 export const SURVEYS_STORE = "surveys";
 export const PROFILE_STORE = "profile";
 export const SESSIONS_STORE = "sessions";
+export const SURVEY_EDITS_STORE = "surveyEdits";
 
 interface VkuFieldSurveyDB extends DBSchema {
   surveys: {
@@ -38,6 +40,13 @@ interface VkuFieldSurveyDB extends DBSchema {
   sessions: {
     key: string;
     value: InspectionSession;
+    indexes: {
+      "by-updated-at": string;
+    };
+  };
+  surveyEdits: {
+    key: string;
+    value: SurveyEditDraft;
     indexes: {
       "by-updated-at": string;
     };
@@ -85,6 +94,13 @@ export function getSurveyDB(): Promise<IDBPDatabase<VkuFieldSurveyDB>> {
             keyPath: "id"
           });
           sessionStore.createIndex("by-updated-at", "updatedAt");
+        }
+
+        if (!db.objectStoreNames.contains(SURVEY_EDITS_STORE)) {
+          const editStore = db.createObjectStore(SURVEY_EDITS_STORE, {
+            keyPath: "id"
+          });
+          editStore.createIndex("by-updated-at", "updatedAt");
         }
       }
     });
@@ -161,6 +177,94 @@ export async function getLatestDraft(): Promise<Survey | undefined> {
   return drafts.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 }
 
+export async function getSurveyEditDraft(
+  surveyId: string
+): Promise<SurveyEditDraft | undefined> {
+  const db = await getSurveyDB();
+  const editDraft = await db.get(SURVEY_EDITS_STORE, surveyId);
+
+  return editDraft
+    ? {
+        ...editDraft,
+        survey: normalizeSurvey(editDraft.survey)
+      }
+    : undefined;
+}
+
+export async function putSurveyEditDraft(
+  editDraft: SurveyEditDraft
+): Promise<SurveyEditDraft> {
+  const db = await getSurveyDB();
+  const normalized: SurveyEditDraft = {
+    ...editDraft,
+    id: editDraft.surveyId,
+    survey: normalizeSurvey(editDraft.survey),
+    updatedAt: new Date().toISOString()
+  };
+
+  await db.put(SURVEY_EDITS_STORE, normalized);
+  return normalized;
+}
+
+export async function deleteSurveyEditDraft(surveyId: string): Promise<void> {
+  const db = await getSurveyDB();
+  await db.delete(SURVEY_EDITS_STORE, surveyId);
+}
+
+export async function commitSurveyEdit(
+  editDraft: SurveyEditDraft
+): Promise<Survey> {
+  const db = await getSurveyDB();
+  const transaction = db.transaction(
+    [SURVEYS_STORE, SURVEY_EDITS_STORE],
+    "readwrite"
+  );
+  const original = await transaction.objectStore(SURVEYS_STORE).get(
+    editDraft.surveyId
+  );
+
+  if (!original) {
+    throw new Error("The original survey no longer exists locally.");
+  }
+
+  const normalizedOriginal = normalizeSurvey(original);
+  const now = new Date().toISOString();
+  const version = Math.max(
+    normalizedOriginal.version,
+    editDraft.originalVersion
+  ) + 1;
+  const reason = editDraft.reason.trim();
+  const editedSurvey = normalizeSurvey({
+    ...editDraft.survey,
+    id: normalizedOriginal.id,
+    createdAt: normalizedOriginal.createdAt,
+    version,
+    status: "PENDING_SYNC",
+    reviewStatus: normalizedOriginal.reviewStatus,
+    assignedTo: normalizedOriginal.assignedTo,
+    adminNote: normalizedOriginal.adminNote,
+    resolvedAt: normalizedOriginal.resolvedAt,
+    updatedAt: now,
+    lastSyncError: undefined,
+    editHistory: [
+      ...normalizedOriginal.editHistory,
+      {
+        version,
+        editedAt: now,
+        editedBy:
+          editDraft.survey.inspector.fullName ||
+          editDraft.survey.inspector.inspectorCode,
+        reason
+      }
+    ]
+  });
+
+  await transaction.objectStore(SURVEYS_STORE).put(editedSurvey);
+  await transaction.objectStore(SURVEY_EDITS_STORE).delete(editDraft.surveyId);
+  await transaction.done;
+  return editedSurvey;
+}
+
 export async function listSyncQueue(): Promise<Survey[]> {
   const surveys = await listSurveys();
   return surveys
@@ -186,7 +290,14 @@ export async function getSurveyCounts(): Promise<SurveyCounts> {
     synced: surveys.filter((survey) => survey.status === "SYNCED").length,
     failed: surveys.filter((survey) => survey.status === "SYNC_FAILED").length,
     critical: submitted.filter((survey) => survey.severity === "Critical").length,
-    lowRating: submitted.filter((survey) => survey.rating <= 2).length
+    lowRating: submitted.filter((survey) => survey.rating <= 2).length,
+    needsReview: submitted.filter(
+      (survey) =>
+        survey.reviewStatus === "OPEN" || survey.reviewStatus === "IN_REVIEW"
+    ).length,
+    resolved: submitted.filter(
+      (survey) => survey.reviewStatus === "RESOLVED"
+    ).length
   };
 }
 

@@ -44,6 +44,12 @@ export const INSPECTOR_ROLES = [
 ] as const;
 export const INSPECTION_SHIFTS = ["Morning", "Afternoon", "Evening"] as const;
 export const GPS_STATUSES = ["not_requested", "captured", "unavailable"] as const;
+export const REVIEW_STATUSES = [
+  "OPEN",
+  "IN_REVIEW",
+  "RESOLVED",
+  "REJECTED"
+] as const;
 
 export type SurveyCategory = (typeof SURVEY_CATEGORIES)[number];
 export type SurveyStatus = (typeof SURVEY_STATUSES)[number];
@@ -56,6 +62,7 @@ export type RecommendedAction = (typeof RECOMMENDED_ACTIONS)[number];
 export type InspectorRole = (typeof INSPECTOR_ROLES)[number];
 export type InspectionShift = (typeof INSPECTION_SHIFTS)[number];
 export type GpsStatus = (typeof GPS_STATUSES)[number];
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
 export interface InspectorSnapshot {
   profileId: string;
@@ -88,8 +95,16 @@ export interface GpsEvidence {
   capturedAt: string;
 }
 
+export interface SurveyEditRecord {
+  version: number;
+  editedAt: string;
+  editedBy: string;
+  reason: string;
+}
+
 export interface Survey {
   id: string;
+  version: number;
   inspector: InspectorSnapshot;
   session: InspectionSessionSnapshot;
   building: string;
@@ -110,9 +125,21 @@ export interface Survey {
   createdAt: string;
   updatedAt: string;
   status: SurveyStatus;
+  reviewStatus: ReviewStatus;
+  assignedTo?: string;
+  adminNote?: string;
+  resolvedAt?: string;
+  editHistory: SurveyEditRecord[];
   syncedAt?: string;
   syncAttempts?: number;
   lastSyncError?: string;
+}
+
+export interface ReviewUpdate {
+  reviewStatus: ReviewStatus;
+  assignedTo: string;
+  adminNote: string;
+  actor: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -195,6 +222,54 @@ function isGpsEvidence(value: unknown): value is GpsEvidence {
   );
 }
 
+function isEditHistory(value: unknown): value is SurveyEditRecord[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.version === "number" &&
+        Number.isInteger(item.version) &&
+        item.version > 1 &&
+        isNonEmptyString(item.editedAt) &&
+        isNonEmptyString(item.editedBy) &&
+        isNonEmptyString(item.reason)
+    )
+  );
+}
+
+export function validateReviewUpdate(value: unknown): {
+  valid: boolean;
+  update?: ReviewUpdate;
+  error?: string;
+} {
+  if (!isRecord(value)) {
+    return { valid: false, error: "Request body must be an object." };
+  }
+  if (!isOneOf(value.reviewStatus, REVIEW_STATUSES)) {
+    return { valid: false, error: "Review status is invalid." };
+  }
+  if (value.assignedTo !== undefined && !isString(value.assignedTo)) {
+    return { valid: false, error: "Assigned user must be text." };
+  }
+  if (value.adminNote !== undefined && !isString(value.adminNote)) {
+    return { valid: false, error: "Admin note must be text." };
+  }
+  if (value.actor !== undefined && !isString(value.actor)) {
+    return { valid: false, error: "Review actor must be text." };
+  }
+
+  return {
+    valid: true,
+    update: {
+      reviewStatus: value.reviewStatus,
+      assignedTo: isString(value.assignedTo) ? value.assignedTo.trim() : "",
+      adminNote: isString(value.adminNote) ? value.adminNote.trim() : "",
+      actor: isString(value.actor) && value.actor.trim() ? value.actor.trim() : "Admin"
+    }
+  };
+}
+
 export function validateSurveyPayload(value: unknown): {
   valid: boolean;
   survey?: Survey;
@@ -206,6 +281,14 @@ export function validateSurveyPayload(value: unknown): {
 
   if (!isNonEmptyString(value.id)) {
     return { valid: false, error: "Survey id is required." };
+  }
+  if (
+    value.version !== undefined &&
+    (typeof value.version !== "number" ||
+      !Number.isInteger(value.version) ||
+      value.version < 1)
+  ) {
+    return { valid: false, error: "Version must be a positive integer." };
   }
   if (!isInspectorSnapshot(value.inspector)) {
     return { valid: false, error: "Inspector snapshot is incomplete." };
@@ -278,11 +361,21 @@ export function validateSurveyPayload(value: unknown): {
   if (!isOneOf(value.status, SURVEY_STATUSES)) {
     return { valid: false, error: "Status is invalid." };
   }
+  if (
+    value.reviewStatus !== undefined &&
+    !isOneOf(value.reviewStatus, REVIEW_STATUSES)
+  ) {
+    return { valid: false, error: "Review status is invalid." };
+  }
+  if (value.editHistory !== undefined && !isEditHistory(value.editHistory)) {
+    return { valid: false, error: "Edit history is invalid." };
+  }
 
   return {
     valid: true,
     survey: {
       id: value.id,
+      version: typeof value.version === "number" ? value.version : 1,
       inspector: value.inspector,
       session: value.session,
       building: value.building,
@@ -303,6 +396,13 @@ export function validateSurveyPayload(value: unknown): {
       createdAt: value.createdAt,
       updatedAt: value.updatedAt,
       status: value.status,
+      reviewStatus: isOneOf(value.reviewStatus, REVIEW_STATUSES)
+        ? value.reviewStatus
+        : "OPEN",
+      assignedTo: isString(value.assignedTo) ? value.assignedTo : undefined,
+      adminNote: isString(value.adminNote) ? value.adminNote : undefined,
+      resolvedAt: isString(value.resolvedAt) ? value.resolvedAt : undefined,
+      editHistory: isEditHistory(value.editHistory) ? value.editHistory : [],
       syncedAt: isString(value.syncedAt) ? value.syncedAt : undefined,
       syncAttempts:
         typeof value.syncAttempts === "number" ? value.syncAttempts : undefined,

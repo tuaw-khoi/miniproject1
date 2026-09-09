@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateSurveyPayload } from "./types.js";
+import { validateReviewUpdate, validateSurveyPayload } from "./types.js";
 
 const validSurvey = {
   id: "survey-1",
@@ -56,4 +56,25 @@ test("accepts unavailable GPS without coordinates", () => {
     gpsStatus: "unavailable"
   });
   assert.equal(result.valid, true);
+});
+
+test("normalizes legacy submissions to version one and open review", () => {
+  const result = validateSurveyPayload(validSurvey);
+  assert.equal(result.survey?.version, 1);
+  assert.equal(result.survey?.reviewStatus, "OPEN");
+  assert.deepEqual(result.survey?.editHistory, []);
+});
+
+test("validates admin review updates", () => {
+  const accepted = validateReviewUpdate({
+    reviewStatus: "IN_REVIEW",
+    assignedTo: "Facilities Team",
+    adminNote: "Inspect projector lamp.",
+    actor: "VKU Admin"
+  });
+  const rejected = validateReviewUpdate({ reviewStatus: "DONE" });
+
+  assert.equal(accepted.valid, true);
+  assert.equal(accepted.update?.assignedTo, "Facilities Team");
+  assert.equal(rejected.valid, false);
 });

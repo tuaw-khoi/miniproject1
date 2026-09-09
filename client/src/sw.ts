@@ -13,6 +13,7 @@ import type { InspectionSession } from "./types/session";
 import {
   normalizeSurvey,
   type Survey,
+  type SurveyEditDraft,
   type SurveyStatus
 } from "./types/survey";
 
@@ -21,10 +22,11 @@ declare const self: ServiceWorkerGlobalScope & {
 };
 
 const DB_NAME = "vku-field-survey";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const SURVEYS_STORE = "surveys";
 const PROFILE_STORE = "profile";
 const SESSIONS_STORE = "sessions";
+const SURVEY_EDITS_STORE = "surveyEdits";
 const BACKGROUND_SYNC_TAG = "vku-survey-sync";
 
 interface VkuFieldSurveyDB extends DBSchema {
@@ -44,6 +46,13 @@ interface VkuFieldSurveyDB extends DBSchema {
   sessions: {
     key: string;
     value: InspectionSession;
+    indexes: {
+      "by-updated-at": string;
+    };
+  };
+  surveyEdits: {
+    key: string;
+    value: SurveyEditDraft;
     indexes: {
       "by-updated-at": string;
     };
@@ -96,6 +105,13 @@ async function syncPendingSurveysFromWorker(): Promise<void> {
         });
         sessionStore.createIndex("by-updated-at", "updatedAt");
       }
+
+      if (!database.objectStoreNames.contains(SURVEY_EDITS_STORE)) {
+        const editStore = database.createObjectStore(SURVEY_EDITS_STORE, {
+          keyPath: "id"
+        });
+        editStore.createIndex("by-updated-at", "updatedAt");
+      }
     }
   });
 
@@ -117,8 +133,13 @@ async function syncPendingSurveysFromWorker(): Promise<void> {
     await db.put(SURVEYS_STORE, queuedSurvey);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/surveys`, {
-        method: "POST",
+      const isRevision = queuedSurvey.version > 1;
+      const response = await fetch(
+        isRevision
+          ? `${API_BASE_URL}/api/surveys/${encodeURIComponent(queuedSurvey.id)}`
+          : `${API_BASE_URL}/api/surveys`,
+        {
+        method: isRevision ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json"
         },
@@ -126,7 +147,8 @@ async function syncPendingSurveysFromWorker(): Promise<void> {
           ...queuedSurvey,
           status: "SYNCED"
         })
-      });
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`API request failed with ${response.status}`);

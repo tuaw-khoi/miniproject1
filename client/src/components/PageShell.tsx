@@ -3,6 +3,7 @@ import {
   History,
   Home,
   PlusCircle,
+  ShieldCheck,
   UserRound
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -27,6 +28,11 @@ const navItems = [
     to: "/profile",
     label: "Profile",
     icon: UserRound
+  },
+  {
+    to: "/admin",
+    label: "Admin",
+    icon: ShieldCheck
   }
 ];
 
@@ -52,7 +58,7 @@ export function PageShell() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur safe-bottom">
-        <div className="mx-auto grid max-w-3xl grid-cols-4 gap-1 px-3 pt-2">
+        <div className="mx-auto grid max-w-3xl grid-cols-5 gap-1 px-2 pt-2">
           {navItems.map((item) => {
             const Icon = item.icon;
 

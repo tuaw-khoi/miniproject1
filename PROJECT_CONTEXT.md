@@ -313,3 +313,23 @@ IndexedDB mechanisms, synchronization, Capacitor, screenshots, and conclusion.
 - Satisfy rubric requirements before adding optional features.
 - Never remove or weaken offline persistence/synchronization for convenience.
 
+## 15. Professional review extension
+
+The implemented extension keeps the original offline-first lifecycle and adds:
+
+- Survey versioning and offline autosaved edit drafts in IndexedDB v3.
+- Submitted surveys retain their UUID; an edit increments `version` and returns
+  to `PENDING_SYNC` until the newer version is acknowledged.
+- `status` remains the required synchronization state. `reviewStatus` is a
+  separate workflow state: `OPEN`, `IN_REVIEW`, `RESOLVED`, or `REJECTED`.
+- An online Admin Review screen reads centralized records, filters and exports
+  them, assigns follow-up work, and records an admin note/status.
+- Production Vercel API synchronizes centralized records to Google Sheets
+  through a server-side Apps Script webhook. Webhook credentials never enter
+  the React bundle.
+- Google Sheets upserts by survey UUID/version, keeps one row per survey, stores
+  audit events separately, and can move Base64 evidence into Google Drive.
+
+The extension does not add authentication or make Google Sheets a dependency
+for offline data entry. IndexedDB remains the durable device-side source of
+truth and failed central delivery remains retryable.

@@ -14,7 +14,9 @@ const EMPTY_COUNTS: SurveyCounts = {
   synced: 0,
   failed: 0,
   critical: 0,
-  lowRating: 0
+  lowRating: 0,
+  needsReview: 0,
+  resolved: 0
 };
 
 export function useSurveys(): {

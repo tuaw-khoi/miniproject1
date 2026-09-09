@@ -5,6 +5,7 @@ import {
   Building2,
   ExternalLink,
   MapPin,
+  Pencil,
   RefreshCw,
   Star,
   UserRound
@@ -12,6 +13,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
+import { ReviewStatusBadge } from "../components/ReviewStatusBadge";
 import { getSurvey } from "../db/indexedDB";
 import { syncSurveys } from "../services/syncService";
 import { surveyStore } from "../stores/surveyStore";
@@ -118,6 +120,9 @@ export function SurveyDetailPage() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <StatusBadge status={survey.status} />
+            {survey.status !== "DRAFT" ? (
+              <ReviewStatusBadge status={survey.reviewStatus} />
+            ) : null}
             {needsAction(survey) ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-200">
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
@@ -156,6 +161,9 @@ export function SurveyDetailPage() {
           <DetailItem label="Priority" value={survey.priority} />
           <DetailItem label="Issue type" value={survey.issueType} />
           <DetailItem label="Recommended action" value={survey.recommendedAction} />
+          <DetailItem label="Version" value={`v${survey.version}`} />
+          <DetailItem label="Review status" value={survey.reviewStatus.replace("_", " ")} />
+          <DetailItem label="Assigned to" value={survey.assignedTo || "Unassigned"} />
           <DetailItem label="Created" value={formatDateTime(survey.createdAt)} />
           <DetailItem label="Updated" value={formatDateTime(survey.updatedAt)} />
           <DetailItem label="Synced" value={formatDateTime(survey.syncedAt)} />
@@ -174,6 +182,41 @@ export function SurveyDetailPage() {
             ))}
           </div>
         </div>
+
+        {survey.adminNote ? (
+          <div className="mt-5 rounded-lg bg-sky-50 p-3">
+            <p className="text-xs font-semibold uppercase text-sky-700">
+              Admin note
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-sky-900">
+              {survey.adminNote}
+            </p>
+          </div>
+        ) : null}
+
+        {survey.editHistory.length ? (
+          <div className="mt-5 border-t border-slate-200 pt-4">
+            <p className="text-xs font-semibold uppercase text-slate-500">
+              Edit history
+            </p>
+            <div className="mt-2 space-y-2">
+              {survey.editHistory
+                .slice()
+                .reverse()
+                .map((edit) => (
+                  <div key={`${edit.version}-${edit.editedAt}`} className="text-sm text-slate-700">
+                    <p className="font-semibold">
+                      Version {edit.version} · {edit.editedBy}
+                    </p>
+                    <p className="text-slate-600">{edit.reason}</p>
+                    <p className="text-xs text-slate-500">
+                      {formatDateTime(edit.editedAt)}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        ) : null}
       </DetailSection>
 
       <DetailSection title="Category checklist" icon={AlertCircle}>
@@ -257,6 +300,15 @@ export function SurveyDetailPage() {
             className="inline-flex items-center justify-center rounded-lg bg-vku-600 px-4 py-3 text-sm font-semibold text-white"
           >
             Continue editing
+          </Link>
+        ) : null}
+        {survey.status !== "DRAFT" ? (
+          <Link
+            to={`/surveys/${survey.id}/edit`}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-vku-200 bg-white px-4 py-3 text-sm font-semibold text-vku-700"
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+            Edit inspection
           </Link>
         ) : null}
         {canRetry ? (

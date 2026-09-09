@@ -12,10 +12,12 @@ import { exportSurveys } from "../services/exportService";
 import { syncSurveys } from "../services/syncService";
 import {
   PRIORITIES,
+  REVIEW_STATUSES,
   SEVERITIES,
   STATUS_LABELS,
   SURVEY_CATEGORIES,
   type Priority,
+  type ReviewStatus,
   type Severity,
   type SurveyCategory,
   type SurveyStatus
@@ -25,6 +27,7 @@ type StatusFilter = "ALL" | SurveyStatus;
 type CategoryFilter = "ALL" | SurveyCategory;
 type SeverityFilter = "ALL" | Severity;
 type PriorityFilter = "ALL" | Priority;
+type ReviewFilter = "ALL" | ReviewStatus;
 
 const STATUS_FILTERS: StatusFilter[] = [
   "ALL",
@@ -40,6 +43,7 @@ export function SurveysPage() {
   const [category, setCategory] = useState<CategoryFilter>("ALL");
   const [severity, setSeverity] = useState<SeverityFilter>("ALL");
   const [priority, setPriority] = useState<PriorityFilter>("ALL");
+  const [reviewStatus, setReviewStatus] = useState<ReviewFilter>("ALL");
   const [inspector, setInspector] = useState("ALL");
   const [surveyDate, setSurveyDate] = useState("");
   const [query, setQuery] = useState("");
@@ -81,12 +85,13 @@ export function SurveysPage() {
         (category === "ALL" || survey.category === category) &&
         (severity === "ALL" || survey.severity === severity) &&
         (priority === "ALL" || survey.priority === priority) &&
+        (reviewStatus === "ALL" || survey.reviewStatus === reviewStatus) &&
         (inspector === "ALL" || survey.inspector.fullName === inspector) &&
         (!surveyDate || survey.session.surveyDate === surveyDate) &&
         haystack.includes(normalizedQuery)
       );
     });
-  }, [category, inspector, priority, query, severity, status, surveyDate, surveys]);
+  }, [category, inspector, priority, query, reviewStatus, severity, status, surveyDate, surveys]);
 
   const retrySync = async (): Promise<void> => {
     setSyncing(true);
@@ -108,6 +113,7 @@ export function SurveysPage() {
     setCategory("ALL");
     setSeverity("ALL");
     setPriority("ALL");
+    setReviewStatus("ALL");
     setInspector("ALL");
     setSurveyDate("");
     setQuery("");
@@ -176,6 +182,12 @@ export function SurveysPage() {
             value={priority}
             onChange={(value) => setPriority(value as PriorityFilter)}
             options={PRIORITIES}
+          />
+          <FilterSelect
+            label="Review"
+            value={reviewStatus}
+            onChange={(value) => setReviewStatus(value as ReviewFilter)}
+            options={REVIEW_STATUSES}
           />
           <FilterSelect
             label="Inspector"

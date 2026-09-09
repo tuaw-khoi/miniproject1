@@ -1,4 +1,4 @@
-import type { Survey } from "../types/survey";
+import { normalizeSurvey, type ReviewStatus, type Survey } from "../types/survey";
 import { API_BASE_URL } from "./apiConfig";
 
 function getErrorMessage(error: unknown): string {
@@ -39,20 +39,51 @@ async function fetchJson<T>(
   }
 }
 
-export async function createRemoteSurvey(survey: Survey): Promise<Survey> {
-  return fetchJson<Survey>("/api/surveys", {
-    method: "POST",
+export interface ReviewUpdate {
+  reviewStatus: ReviewStatus;
+  assignedTo: string;
+  adminNote: string;
+  actor: string;
+}
+
+export async function upsertRemoteSurvey(survey: Survey): Promise<Survey> {
+  const isRevision = survey.version > 1;
+  const remoteSurvey = await fetchJson<Survey>(
+    isRevision ? `/api/surveys/${encodeURIComponent(survey.id)}` : "/api/surveys",
+    {
+    method: isRevision ? "PUT" : "POST",
     body: JSON.stringify({
       ...survey,
       status: "SYNCED"
     })
-  });
+    }
+  );
+
+  return normalizeSurvey(remoteSurvey);
 }
 
 export async function getRemoteSurveys(): Promise<Survey[]> {
-  return fetchJson<Survey[]>("/api/surveys");
+  const surveys = await fetchJson<Survey[]>("/api/surveys");
+  return surveys.map(normalizeSurvey);
 }
 
 export async function getRemoteSurvey(id: string): Promise<Survey> {
-  return fetchJson<Survey>(`/api/surveys/${id}`);
+  return normalizeSurvey(
+    await fetchJson<Survey>(`/api/surveys/${encodeURIComponent(id)}`)
+  );
+}
+
+export async function updateRemoteSurveyReview(
+  id: string,
+  update: ReviewUpdate
+): Promise<Survey> {
+  return normalizeSurvey(
+    await fetchJson<Survey>(
+      `/api/surveys/${encodeURIComponent(id)}/review`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(update)
+      }
+    )
+  );
 }

@@ -8,10 +8,13 @@ import { PageShell } from "./components/PageShell";
 import { useNetwork } from "./hooks/useNetwork";
 import { HomePage } from "./pages/HomePage";
 import { NewSurveyPage } from "./pages/NewSurveyPage";
+import { EditSurveyPage } from "./pages/EditSurveyPage";
+import { AdminPage } from "./pages/AdminPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SurveyDetailPage } from "./pages/SurveyDetailPage";
 import { SurveysPage } from "./pages/SurveysPage";
 import {
+  refreshReviewMetadata,
   registerBackgroundSync,
   syncSurveys
 } from "./services/syncService";
@@ -22,12 +25,12 @@ export function App() {
 
   useEffect(() => {
     void registerBackgroundSync();
-    void syncSurveys();
+    void syncSurveys().then(() => refreshReviewMetadata());
   }, []);
 
   useEffect(() => {
     if (network.connected && !lastOnline) {
-      void syncSurveys();
+      void syncSurveys().then(() => refreshReviewMetadata());
       void registerBackgroundSync();
     }
 
@@ -42,7 +45,12 @@ export function App() {
           <Route path="new" element={<NewSurveyPage network={network} />} />
           <Route path="surveys" element={<SurveysPage />} />
           <Route path="surveys/:id" element={<SurveyDetailPage />} />
+          <Route
+            path="surveys/:id/edit"
+            element={<EditSurveyPage network={network} />}
+          />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="admin" element={<AdminPage network={network} />} />
         </Route>
       </Routes>
     </BrowserRouter>

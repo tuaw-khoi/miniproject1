@@ -58,6 +58,52 @@ export function NewSurveyPage({ network }: NewSurveyPageProps) {
   const navigate = useNavigate();
   const { draft, loading, saveState, updateDraft, replaceDraft, resetDraft } =
     useSurveyDraft();
+  const submit = async (survey: Survey): Promise<void> => {
+    const result = await submitSurvey(survey, network.connected);
+    replaceDraft(result.survey);
+    resetDraft();
+    navigate(`/surveys/${result.survey.id}`, {
+      state: { message: result.message }
+    });
+  };
+
+  return (
+    <InspectionForm
+      network={network}
+      draft={draft}
+      loading={loading}
+      saveState={saveState}
+      mode="new"
+      onChange={updateDraft}
+      onSubmit={submit}
+    />
+  );
+}
+
+interface InspectionFormProps {
+  network: NetworkState;
+  draft: Survey | undefined;
+  loading: boolean;
+  saveState: "idle" | "saving" | "saved";
+  mode: "new" | "edit";
+  editReason?: string;
+  onEditReasonChange?: (reason: string) => void;
+  onChange: (patch: Partial<Survey>) => void;
+  onSubmit: (survey: Survey) => Promise<void>;
+  onCancel?: () => Promise<void>;
+}
+
+export function InspectionForm({
+  draft,
+  loading,
+  saveState,
+  mode,
+  editReason = "",
+  onEditReasonChange,
+  onChange,
+  onSubmit,
+  onCancel
+}: InspectionFormProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -68,10 +114,18 @@ export function NewSurveyPage({ network }: NewSurveyPageProps) {
   );
   const ready = useMemo(() => (draft ? isSurveyReady(draft) : false), [draft]);
 
-  if (loading || !draft) {
+  if (loading) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-        Loading local draft...
+        Loading local {mode === "edit" ? "edit" : "draft"}...
+      </div>
+    );
+  }
+
+  if (!draft) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        Survey not found locally.
       </div>
     );
   }
@@ -81,24 +135,22 @@ export function NewSurveyPage({ network }: NewSurveyPageProps) {
       setMessage(validationErrors[0] ?? "Complete all required fields.");
       return;
     }
+    if (mode === "edit" && !editReason.trim()) {
+      setMessage("Enter a reason for this change.");
+      return;
+    }
 
     setSubmitting(true);
     setMessage(undefined);
 
     try {
-      const result = await submitSurvey(draft, network.connected);
-      replaceDraft(result.survey);
-      resetDraft();
-      navigate(`/surveys/${result.survey.id}`, {
-        state: { message: result.message }
-      });
+      await onSubmit(draft);
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
           : "The survey could not be saved locally."
       );
-    } finally {
       setSubmitting(false);
     }
   };
@@ -108,9 +160,13 @@ export function NewSurveyPage({ network }: NewSurveyPageProps) {
       <section className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-slate-950">New inspection</h1>
+            <h1 className="text-xl font-bold text-slate-950">
+              {mode === "edit" ? "Edit inspection" : "New inspection"}
+            </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Draft autosaves locally while you work.
+              {mode === "edit"
+                ? `Editing version ${draft.version}. Changes autosave locally.`
+                : "Draft autosaves locally while you work."}
             </p>
           </div>
           <StatusBadge status={draft.status} />
@@ -148,23 +204,36 @@ export function NewSurveyPage({ network }: NewSurveyPageProps) {
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         {step === 0 ? <AssignmentStep draft={draft} /> : null}
         {step === 1 ? (
-          <LocationStep draft={draft} onChange={updateDraft} />
+          <LocationStep draft={draft} onChange={onChange} />
         ) : null}
         {step === 2 ? (
-          <ChecklistStep draft={draft} onChange={updateDraft} />
+          <ChecklistStep draft={draft} onChange={onChange} />
         ) : null}
         {step === 3 ? (
-          <AssessmentStep draft={draft} onChange={updateDraft} />
+          <AssessmentStep draft={draft} onChange={onChange} />
         ) : null}
         {step === 4 ? (
-          <EvidenceStep draft={draft} onChange={updateDraft} />
+          <EvidenceStep draft={draft} onChange={onChange} />
         ) : null}
         {step === 5 ? (
-          <ReviewStep
-            draft={draft}
-            ready={ready}
-            validationErrors={validationErrors}
-          />
+          <div className="space-y-5">
+            <ReviewStep
+              draft={draft}
+              ready={ready}
+              validationErrors={validationErrors}
+            />
+            {mode === "edit" ? (
+              <Field label="Reason for change" required>
+                <textarea
+                  value={editReason}
+                  onChange={(event) => onEditReasonChange?.(event.target.value)}
+                  placeholder="Example: Corrected room and updated evidence after reinspection"
+                  rows={3}
+                  className={`${inputClass} resize-none`}
+                />
+              </Field>
+            ) : null}
+          </div>
         ) : null}
       </section>
 
@@ -175,15 +244,27 @@ export function NewSurveyPage({ network }: NewSurveyPageProps) {
       ) : null}
 
       <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => setStep((current) => Math.max(0, current - 1))}
-          disabled={step === 0 || submitting}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setStep((current) => Math.max(0, current - 1))}
+            disabled={step === 0 || submitting}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Back
+          </button>
+          {mode === "edit" && onCancel ? (
+            <button
+              type="button"
+              onClick={() => void onCancel()}
+              disabled={submitting}
+              className="rounded-lg px-3 py-3 text-sm font-semibold text-slate-600"
+            >
+              Cancel edit
+            </button>
+          ) : null}
+        </div>
 
         {step < STEPS.length - 1 ? (
           <button
@@ -204,7 +285,13 @@ export function NewSurveyPage({ network }: NewSurveyPageProps) {
             className="inline-flex items-center gap-2 rounded-lg bg-vku-600 px-4 py-3 text-sm font-semibold text-white hover:bg-vku-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Check className="h-4 w-4" aria-hidden="true" />
-            {submitting ? "Submitting..." : "Submit"}
+            {submitting
+              ? mode === "edit"
+                ? "Saving..."
+                : "Submitting..."
+              : mode === "edit"
+                ? "Save changes"
+                : "Submit"}
           </button>
         )}
       </div>

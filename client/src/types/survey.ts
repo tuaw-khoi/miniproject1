@@ -47,6 +47,12 @@ export const RECOMMENDED_ACTIONS = [
   "Escalate",
   "Monitor"
 ] as const;
+export const REVIEW_STATUSES = [
+  "OPEN",
+  "IN_REVIEW",
+  "RESOLVED",
+  "REJECTED"
+] as const;
 
 export type SurveyCategory = (typeof SURVEY_CATEGORIES)[number];
 export type RoomType = (typeof ROOM_TYPES)[number];
@@ -55,6 +61,7 @@ export type Severity = (typeof SEVERITIES)[number];
 export type Priority = (typeof PRIORITIES)[number];
 export type IssueType = (typeof ISSUE_TYPES)[number];
 export type RecommendedAction = (typeof RECOMMENDED_ACTIONS)[number];
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 export type GpsStatus = "not_requested" | "captured" | "unavailable";
 
 export type SurveyStatus =
@@ -76,8 +83,25 @@ export interface GpsEvidence {
   capturedAt: string;
 }
 
+export interface SurveyEditRecord {
+  version: number;
+  editedAt: string;
+  editedBy: string;
+  reason: string;
+}
+
+export interface SurveyEditDraft {
+  id: string;
+  surveyId: string;
+  originalVersion: number;
+  survey: Survey;
+  reason: string;
+  updatedAt: string;
+}
+
 export interface Survey {
   id: string;
+  version: number;
   inspector: InspectorSnapshot;
   session: InspectionSessionSnapshot;
   building: string;
@@ -98,6 +122,11 @@ export interface Survey {
   createdAt: string;
   updatedAt: string;
   status: SurveyStatus;
+  reviewStatus: ReviewStatus;
+  assignedTo?: string;
+  adminNote?: string;
+  resolvedAt?: string;
+  editHistory: SurveyEditRecord[];
   syncedAt?: string;
   syncAttempts?: number;
   lastSyncError?: string;
@@ -112,6 +141,8 @@ export interface SurveyCounts {
   failed: number;
   critical: number;
   lowRating: number;
+  needsReview: number;
+  resolved: number;
 }
 
 export const STATUS_LABELS: Record<SurveyStatus, string> = {
@@ -125,6 +156,13 @@ export const CHECKLIST_STATUS_LABELS: Record<ChecklistStatus, string> = {
   OK: "OK",
   ISSUE: "Issue",
   NOT_CHECKED: "Not checked"
+};
+
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  OPEN: "Open",
+  IN_REVIEW: "In Review",
+  RESOLVED: "Resolved",
+  REJECTED: "Rejected"
 };
 
 const CHECKLIST_LABELS: Record<SurveyCategory, string[]> = {
@@ -145,9 +183,10 @@ export function createChecklist(category: SurveyCategory): ChecklistItem[] {
 
 export function needsAction(survey: Survey): boolean {
   return (
-    survey.severity === "High" ||
-    survey.severity === "Critical" ||
-    survey.rating <= 2
+    survey.reviewStatus !== "RESOLVED" &&
+    (survey.severity === "High" ||
+      survey.severity === "Critical" ||
+      survey.rating <= 2)
   );
 }
 
@@ -192,6 +231,7 @@ export function createEmptySurvey(
 ): Survey {
   return {
     id,
+    version: 1,
     inspector,
     session,
     building: "",
@@ -210,6 +250,8 @@ export function createEmptySurvey(
     createdAt,
     updatedAt: createdAt,
     status: "DRAFT",
+    reviewStatus: "OPEN",
+    editHistory: [],
     syncAttempts: 0
   };
 }
@@ -225,6 +267,9 @@ export function normalizeSurvey(input: Survey): Survey {
     inspector?: InspectorSnapshot;
     session?: InspectionSessionSnapshot;
     gpsStatus?: GpsStatus;
+    version?: number;
+    reviewStatus?: ReviewStatus;
+    editHistory?: SurveyEditRecord[];
   };
   const category = SURVEY_CATEGORIES.includes(legacyInput.category)
     ? legacyInput.category
@@ -232,6 +277,10 @@ export function normalizeSurvey(input: Survey): Survey {
 
   return {
     ...legacyInput,
+    version:
+      Number.isInteger(legacyInput.version) && (legacyInput.version ?? 0) > 0
+        ? legacyInput.version
+        : 1,
     inspector: legacyInput.inspector ?? createLegacyInspectorSnapshot(),
     session:
       legacyInput.session ?? createLegacySessionSnapshot(legacyInput.createdAt),
@@ -245,6 +294,14 @@ export function normalizeSurvey(input: Survey): Survey {
     priority: legacyInput.priority ?? "Normal",
     issueType: legacyInput.issueType ?? "Other",
     recommendedAction: legacyInput.recommendedAction ?? "Monitor",
+    reviewStatus: REVIEW_STATUSES.includes(
+      legacyInput.reviewStatus as ReviewStatus
+    )
+      ? (legacyInput.reviewStatus as ReviewStatus)
+      : "OPEN",
+    editHistory: Array.isArray(legacyInput.editHistory)
+      ? legacyInput.editHistory
+      : [],
     gpsStatus:
       legacyInput.gpsStatus ?? (legacyInput.gps ? "captured" : "not_requested")
   };

@@ -1,13 +1,16 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
 import {
+  commitSurveyEdit,
   getCurrentInspectionSession,
   getInspectorProfile,
   getSurvey,
+  getSurveyEditDraft,
   listSyncQueue,
   putCurrentInspectionSession,
   putDraftSurvey,
   putInspectorProfile,
+  putSurveyEditDraft,
   putSurvey
 } from "./indexedDB";
 import {
@@ -112,5 +115,48 @@ describe("IndexedDB offline records", () => {
     await putDraftSurvey({ ...draft, notes: "Late draft write" });
 
     expect((await getSurvey(draft.id))?.status).toBe("SYNCED");
+  });
+
+  it("commits an autosaved edit as a new queued version with the same UUID", async () => {
+    const profile = await getInspectorProfile();
+    const session = await getCurrentInspectionSession();
+    expect(session).toBeDefined();
+    if (!session) return;
+
+    const original = {
+      ...createEmptySurvey(
+        "editable-survey",
+        now,
+        toInspectorSnapshot(profile),
+        toSessionSnapshot(session)
+      ),
+      building: "V",
+      floor: "3",
+      room: "V301",
+      rating: 3,
+      notes: "Original note",
+      status: "SYNCED" as const
+    };
+    await putSurvey(original);
+    await putSurveyEditDraft({
+      id: original.id,
+      surveyId: original.id,
+      originalVersion: 1,
+      survey: { ...original, room: "V303" },
+      reason: "Corrected the room number",
+      updatedAt: now
+    });
+
+    const savedEdit = await getSurveyEditDraft(original.id);
+    expect(savedEdit?.survey.room).toBe("V303");
+    expect(savedEdit).toBeDefined();
+    if (!savedEdit) return;
+
+    const edited = await commitSurveyEdit(savedEdit);
+    expect(edited.id).toBe(original.id);
+    expect(edited.version).toBe(2);
+    expect(edited.status).toBe("PENDING_SYNC");
+    expect(edited.editHistory[0]?.reason).toBe("Corrected the room number");
+    expect(await getSurveyEditDraft(original.id)).toBeUndefined();
   });
 });

@@ -30,7 +30,9 @@ export function exportSurveys(
 export function createSurveyCsv(surveys: Survey[]): string {
   const headers = [
     "id",
+    "version",
     "status",
+    "review_status",
     "created_at",
     "session_code",
     "survey_date",
@@ -50,6 +52,8 @@ export function createSurveyCsv(surveys: Survey[]): string {
     "priority",
     "issue_type",
     "recommended_action",
+    "assigned_to",
+    "admin_note",
     "checklist",
     "notes",
     "photo_attached",
@@ -61,7 +65,9 @@ export function createSurveyCsv(surveys: Survey[]): string {
 
   const rows = surveys.map((survey) => [
     survey.id,
+    String(survey.version),
     survey.status,
+    survey.reviewStatus,
     survey.createdAt,
     survey.session.code,
     survey.session.surveyDate,
@@ -81,6 +87,8 @@ export function createSurveyCsv(surveys: Survey[]): string {
     survey.priority,
     survey.issueType,
     survey.recommendedAction,
+    survey.assignedTo ?? "",
+    survey.adminNote ?? "",
     survey.checklist.map((item) => `${item.label}: ${item.status}`).join("; "),
     survey.notes,
     survey.photo ? "Yes" : "No",

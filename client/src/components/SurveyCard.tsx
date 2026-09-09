@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { needsAction, type Survey } from "../types/survey";
 import { formatDateTime } from "../utils/format";
 import { StatusBadge } from "./StatusBadge";
+import { ReviewStatusBadge } from "./ReviewStatusBadge";
 
 interface SurveyCardProps {
   survey: Survey;
@@ -52,6 +53,9 @@ export function SurveyCard({ survey }: SurveyCardProps) {
                   <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                   Needs Action
                 </span>
+              ) : null}
+              {survey.status !== "DRAFT" ? (
+                <ReviewStatusBadge status={survey.reviewStatus} />
               ) : null}
               <StatusBadge status={survey.status} />
             </div>

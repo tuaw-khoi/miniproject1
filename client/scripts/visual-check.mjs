@@ -117,8 +117,41 @@ try {
   await page.waitForTimeout(600);
   await page.getByRole("status", { name: "Synced" }).waitFor();
 
+  await page.getByRole("link", { name: "Edit inspection" }).click();
+  await page.getByTitle("Location").click();
+  await page.getByLabel("Room number / custom room").fill("V302");
+  await page.getByTitle("Review").click();
+  await page
+    .getByLabel("Reason for change")
+    .fill("Corrected room after verification.");
+  await page.waitForTimeout(700);
+  await page.reload();
+  await page.getByText("Edit inspection").waitFor();
+  await page.getByTitle("Review").click();
+  if ((await page.getByLabel("Reason for change").inputValue()) !== "Corrected room after verification.") {
+    throw new Error("Survey edit draft was not restored after refresh.");
+  }
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.getByText("Version 2 saved.").waitFor();
+  await page.getByText("v2").waitFor();
+
+  await page.goto(`${appUrl}/admin`);
+  await page.getByText("V302").first().waitFor();
+  await page.getByRole("button", { name: /V302/ }).click();
+  const adminDetail = page.locator("aside");
+  await adminDetail.getByLabel("Review status").selectOption("IN_REVIEW");
+  await adminDetail.getByLabel("Assigned to").fill("Facilities Team");
+  await adminDetail.getByLabel("Admin note").fill("Projector lamp scheduled for inspection.");
+  await adminDetail.getByRole("button", { name: "Save review" }).click();
+  await page.getByText("updated to In Review").waitFor();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: resolve(screenshotDir, "admin.png")
+  });
+
   await page.goto(`${appUrl}/surveys`);
-  await page.getByText("V301").waitFor();
+  await page.getByText("V302").waitFor();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export CSV" }).click();
   await downloadPromise;
@@ -162,7 +195,7 @@ try {
   await offlinePage.getByText("VKU Field Survey").waitFor();
   await context.setOffline(false);
 
-  console.log("E2E checks passed: profile persistence, online/offline submit, auto-sync, export, GPS and offline boot.");
+  console.log("E2E checks passed: profile persistence, edit versioning, admin review, online/offline submit, auto-sync, export, GPS and offline boot.");
 } finally {
   if (browser) await browser.close();
   for (const child of children) child.kill("SIGTERM");

@@ -9,6 +9,7 @@ import {
   createEmptySurvey,
   getSurveyValidationErrors,
   isSurveyReady,
+  needsAction,
   normalizeSurvey,
   type Survey
 } from "./survey";
@@ -85,5 +86,19 @@ describe("survey business rules", () => {
     expect(normalized.inspector.inspectorCode).toBe("LEGACY");
     expect(normalized.roomType).toBe("Other");
     expect(normalized.checklist).toHaveLength(5);
+    expect(normalized.version).toBe(1);
+    expect(normalized.reviewStatus).toBe("OPEN");
+    expect(normalized.editHistory).toEqual([]);
+  });
+
+  it("clears Needs Action after an admin resolves the issue", () => {
+    const survey = {
+      ...createReadySurvey(),
+      severity: "Critical" as const,
+      photo: "data:image/jpeg;base64,test"
+    };
+
+    expect(needsAction(survey)).toBe(true);
+    expect(needsAction({ ...survey, reviewStatus: "RESOLVED" })).toBe(false);
   });
 });

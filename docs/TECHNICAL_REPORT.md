@@ -4,7 +4,7 @@
 
 VKU facility inspectors work in classrooms, laboratories, basements and remote buildings where Wi-Fi or mobile data may be unavailable. A network-dependent form risks losing observations, photos and unfinished work. VKU Field Survey therefore treats local storage as the source of truth: the app boots offline after its first visit, autosaves drafts, accepts offline submissions and synchronizes later.
 
-The extended version adds a professional inspection workflow while preserving the original rubric. It uses a local inspector profile, active inspection sessions, category-specific checklists, issue classification, GPS/photo evidence, operational filters and offline export. Authentication, admin roles and a complex database remain outside this mini-project.
+The extended version adds a professional inspection and review workflow while preserving the original rubric. It uses local inspector/session context, category checklists, issue classification, GPS/photo evidence, editable versioned records, an Admin review dashboard and Google Sheets/Drive central reporting. Authentication remains outside this mini-project.
 
 ## 2. Feature Checklist
 
@@ -19,7 +19,10 @@ The extended version adds a professional inspection workflow while preserving th
 - [x] Photo and GPS evidence with web/native fallbacks.
 - [x] UUID-based offline queue and sequential automatic synchronization.
 - [x] History filters, Needs Action status, dashboard and CSV/JSON export.
-- [x] Express REST API with idempotent POST by UUID.
+- [x] Stable-UUID edits, local edit recovery and version history.
+- [x] Admin assignment, notes and Open/In Review/Resolved/Rejected workflow.
+- [x] Google Sheets UUID/version upsert, Drive photo URL and AuditLog.
+- [x] REST API with idempotent POST, revision PUT and review PATCH.
 - [x] Capacitor project and Camera, Network and Geolocation integration.
 - [x] Java 21 Android APK build and public GitHub release download.
 - [x] Public HTTPS PWA and same-origin Vercel API deployment.
@@ -31,20 +34,20 @@ The repository is an npm workspace. `client/` contains the shared React PWA/Capa
 
 ```text
 React UI
-  -> IndexedDB v2: surveys | profile | sessions
+  -> IndexedDB v3: surveys | profile | sessions | surveyEdits
   -> local-first submit: DRAFT -> PENDING_SYNC
   -> foreground sync / Background Sync (sequential)
-  -> POST /api/surveys
-  -> JSON storage (idempotent UUID) -> SYNCED
+  -> POST/PUT /api/surveys
+  -> Apps Script -> Google Sheets + Drive -> SYNCED
 ```
 
-Each survey includes location, room type, category, checklist, rating, classification, notes, optional photo, GPS state/evidence, timestamps and sync state. `inspector` and `session` are snapshots, so later profile edits cannot change the historical record. A runtime normalizer adds compatible defaults to records written by IndexedDB version 1.
+Each survey includes location, category checklist, rating, classification, evidence, version, timestamps, sync state and an independent review state. `inspector` and `session` are immutable snapshots. A runtime normalizer adds compatible defaults to older IndexedDB records.
 
 ## 4. Offline And Synchronization Design
 
 Form changes are debounced and written to IndexedDB while the record is a Draft. Submission always stores a Pending Sync copy locally before contacting the API. A successful response is the only event that marks the record Synced. Network/API failures preserve the complete record as Pending Sync or Sync Failed.
 
-The foreground sync engine prevents overlapping runs and sends queued items in creation order. Synchronization is triggered at startup, on browser online events, Capacitor Network events, manual retry and Background Sync where available. The service worker uses the same IndexedDB version and payload contract. The Express API validates nested business fields and returns an existing record for a repeated UUID.
+The foreground sync engine prevents overlapping runs and sends queued items in creation order. Synchronization is triggered at startup, network events, manual retry and Background Sync. Editing preserves the UUID, increments the version and returns the record to the queue. Equal/older API retries cannot overwrite a newer version or create a duplicate row.
 
 ## 5. PWA, Native Bridge And Evidence
 
@@ -54,6 +57,6 @@ The Android project declares Internet, Camera and coarse/fine location permissio
 
 ## 6. Verification And Result
 
-Automated tests cover client business rules, old-schema normalization, IndexedDB profile/session persistence, immutable snapshots, queue order and server payload validation. A Chromium E2E scenario verifies profile recovery, online submit, offline submit, reconnect auto-sync, GPS capture, CSV download and service-worker offline boot. Production checks verify Vercel deep links, service-worker offline reload, CORS and idempotent API requests. The downloaded APK passes signature/package metadata verification.
+Automated tests cover business rules, migration defaults, IndexedDB snapshots/edit drafts, queue order and server/review validation. Chromium E2E verifies profile recovery, online/offline submit, edit recovery, version 2 synchronization, Admin review, reconnect auto-sync, GPS, CSV and offline boot. Production checks cover Vercel routing, service worker behavior and idempotent API requests.
 
 The deliverables are published at `https://miniproject1-client.vercel.app`, `https://github.com/tuaw-khoi/miniproject1`, and the `apk-latest` GitHub Release. The remaining manual task is installing the APK on a physical Android phone and exercising native Camera, Network and GPS permissions.

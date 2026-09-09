@@ -1,7 +1,12 @@
-import { putSurvey, listSyncQueue } from "../db/indexedDB";
+import {
+  listSurveys,
+  listSyncQueue,
+  patchSurvey,
+  putSurvey
+} from "../db/indexedDB";
 import { surveyStore } from "../stores/surveyStore";
 import type { Survey } from "../types/survey";
-import { createRemoteSurvey } from "./api";
+import { getRemoteSurveys, upsertRemoteSurvey } from "./api";
 import { getNetworkSnapshot } from "./networkService";
 
 export const BACKGROUND_SYNC_TAG = "vku-survey-sync";
@@ -77,7 +82,7 @@ export async function submitSurvey(
   }
 
   try {
-    const remoteSurvey = await createRemoteSurvey(queuedSurvey);
+    const remoteSurvey = await upsertRemoteSurvey(queuedSurvey);
     const syncedSurvey: Survey = {
       ...queuedSurvey,
       ...remoteSurvey,
@@ -157,7 +162,7 @@ export async function syncSurveys(): Promise<SyncResult> {
       surveyStore.notify();
 
       try {
-        const remoteSurvey = await createRemoteSurvey(queuedSurvey);
+        const remoteSurvey = await upsertRemoteSurvey(queuedSurvey);
         await putSurvey({
           ...queuedSurvey,
           ...remoteSurvey,
@@ -184,5 +189,45 @@ export async function syncSurveys(): Promise<SyncResult> {
     return result;
   } finally {
     syncInProgress = false;
+  }
+}
+
+export async function refreshReviewMetadata(): Promise<number> {
+  const network = await getNetworkSnapshot();
+  if (!network.connected) return 0;
+
+  try {
+    const [localSurveys, remoteSurveys] = await Promise.all([
+      listSurveys(),
+      getRemoteSurveys()
+    ]);
+    const localById = new Map(localSurveys.map((survey) => [survey.id, survey]));
+    let updated = 0;
+
+    for (const remote of remoteSurveys) {
+      const local = localById.get(remote.id);
+      if (!local) continue;
+      if (
+        local.reviewStatus === remote.reviewStatus &&
+        local.assignedTo === remote.assignedTo &&
+        local.adminNote === remote.adminNote &&
+        local.resolvedAt === remote.resolvedAt
+      ) {
+        continue;
+      }
+      await patchSurvey(remote.id, {
+        reviewStatus: remote.reviewStatus,
+        assignedTo: remote.assignedTo,
+        adminNote: remote.adminNote,
+        resolvedAt: remote.resolvedAt,
+        updatedAt: local.updatedAt
+      });
+      updated += 1;
+    }
+
+    if (updated) surveyStore.notify();
+    return updated;
+  } catch {
+    return 0;
   }
 }

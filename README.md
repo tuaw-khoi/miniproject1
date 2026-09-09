@@ -1,6 +1,6 @@
 # VKU Field Survey
 
-Offline-first facility inspection system for VKU campus. Inspectors can maintain a local identity, work in an inspection session, complete category-specific checklists, attach photo/GPS evidence, submit with no network, and automatically synchronize queued records later.
+Offline-first facility inspection and review system for VKU campus. Inspectors can work without connectivity, revise submitted records and synchronize later; administrators review the central queue backed by Google Sheets and Drive evidence links.
 
 [Live PWA](https://miniproject1-client.vercel.app) | [API Health](https://miniproject1-client.vercel.app/api/health) | [Download Android APK](https://github.com/tuaw-khoi/miniproject1/releases/download/apk-latest/vku-field-survey.apk)
 
@@ -17,6 +17,10 @@ Offline-first facility inspection system for VKU campus. Inspectors can maintain
 - Mandatory notes plus mandatory photo for High/Critical issues.
 - Native Capacitor GPS and Camera with browser fallbacks.
 - Offline queue with UUIDs, sequential retry, duplicate-run lock and idempotent API.
+- Autosaved survey edits with stable UUIDs, version history and automatic re-queue.
+- Separate sync and review workflows (`OPEN`, `IN_REVIEW`, `RESOLVED`, `REJECTED`).
+- Admin dashboard with central filters, evidence detail, assignment and resolution notes.
+- Google Sheets UUID/version upsert, AuditLog and optional Google Drive photo storage.
 - Search/filter by status, category, severity, priority, inspector and date.
 - Local CSV/JSON export that remains available offline.
 - Operational dashboard for today's records, pending/failed sync, critical issues and low ratings.
@@ -25,25 +29,25 @@ Offline-first facility inspection system for VKU campus. Inspectors can maintain
 
 ```text
 React PWA / Capacitor
-  -> IndexedDB (surveys, profile, sessions)
+  -> IndexedDB v3 (surveys, profile, sessions, surveyEdits)
   -> local-first submit (PENDING_SYNC)
   -> sequential sync service / Background Sync
-  -> Express REST API
-  -> JSON storage, idempotent by survey UUID
+  -> Express / Vercel REST API
+  -> Google Apps Script -> Sheets + Drive
 ```
 
-Every survey stores immutable `inspector` and `session` snapshots. Changing the local profile later does not rewrite existing inspection records. IndexedDB version 2 normalizes records created by the original schema so local drafts and queued surveys are preserved.
+Every survey stores immutable `inspector` and `session` snapshots. Changing the local profile later does not rewrite existing inspection records. IndexedDB version 3 normalizes older records and stores in-progress edits separately, so refreshing an edit cannot damage the last submitted version.
 
 ## Project Structure
 
 ```text
-client/src/pages/       Home, Profile, New Survey, History and Detail
+client/src/pages/       Home, Profile, Survey workflow, History, Detail and Admin
 client/src/db/          IndexedDB schema and local repository functions
 client/src/services/    API, sync, camera, GPS, network and export services
 client/src/types/       Strongly typed profile, session and survey contracts
 client/src/sw.ts        App-shell cache and Background Sync handler
 client/android/         Capacitor Android project
-server/src/             Express API, validation and idempotent storage
+server/src/             Express API, validation, version upsert and Sheets bridge
 docs/                   Report, implementation checklist and screenshots
 ```
 
@@ -68,7 +72,9 @@ Local URLs:
 - PWA: `http://localhost:5173`
 - API: `http://localhost:4000`
 
-Open Profile first and enter the inspector identity and active session. Profile/session data remains local to the current device. Photos are resized and stored as Base64 data URLs in IndexedDB; synchronized records keep the evidence inline in server JSON storage.
+Open Profile first and enter the inspector identity and active session. Profile/session data remains local to the current device. Photos are resized and stored as Base64 data URLs in IndexedDB; the Apps Script bridge moves synchronized evidence to Drive and stores its URL in Sheets.
+
+Google Sheets is optional for local development. To enable the central Admin data source, copy `docs/google-apps-script.gs` into a Sheet-bound Apps Script project, run `setupSheets`, deploy it as a Web App, and set `SHEETS_WEBHOOK_URL` plus `SHEETS_WEBHOOK_SECRET`. The deployed Vercel function already has the course-demo webhook fallback; production projects should use environment variables instead.
 
 ## Commands
 
@@ -85,6 +91,8 @@ npm run android:apk     # create app-debug.apk when Android SDK is configured
 
 The E2E command uses a temporary API data directory. It verifies profile persistence, online submit, offline submit, automatic reconnect sync, GPS, CSV export and service-worker offline boot without changing `server/data/surveys.json`. Set `CHROMIUM_PATH` if Chromium is installed outside the common Linux paths.
 
+Production PWA and Capacitor builds default to `https://miniproject1-client.vercel.app`; set `VITE_API_URL` only when building against another HTTPS backend. Development mode continues to use `http://localhost:4000`.
+
 ## API
 
 ```text
@@ -92,9 +100,11 @@ GET  /health
 GET  /api/surveys
 GET  /api/surveys/:id
 POST /api/surveys
+PUT  /api/surveys/:id
+PATCH /api/surveys/:id/review
 ```
 
-`POST /api/surveys` validates the complete business payload and is idempotent. Retrying the same UUID returns the existing record instead of creating a duplicate.
+`POST` creates version 1, while `PUT` accepts a newer version for the same UUID. Equal/older retries return the existing record. `PATCH` changes only administrator-owned review fields. All endpoints validate the business payload before persistence.
 
 ## Manual Acceptance Test
 
@@ -105,9 +115,12 @@ POST /api/surveys
 5. Restore network and confirm the queue synchronizes sequentially.
 6. Stop the API and confirm a failed upload remains local as `SYNC_FAILED`.
 7. Set severity to High or Critical and confirm notes/photo rules are enforced.
-8. Export filtered History as CSV and JSON while offline.
-9. Reopen the installed PWA offline after one successful online visit.
-10. On Android, verify native Camera, Network and Geolocation permissions/plugins.
+8. Edit a synced survey, refresh during editing, save and confirm the UUID stays the same while version increments.
+9. Open Admin, assign the record, add a note and move it to In Review/Resolved.
+10. Confirm one UUID row and a new audit event appear in Google Sheets; photo evidence opens from Drive.
+11. Export filtered History/Admin data as CSV and JSON.
+12. Reopen the installed PWA offline after one successful online visit.
+13. On Android, verify native Camera, Network and Geolocation permissions/plugins.
 
 ## Android
 
@@ -136,7 +149,7 @@ To install on a phone, open the download link in Chrome, allow that browser to i
 - API health check: <https://miniproject1-client.vercel.app/api/health>
 - Public source: <https://github.com/tuaw-khoi/miniproject1>
 
-The connected Vercel project uses `client/` as its Root Directory. `client/vercel.json` preserves React Router deep links, serves the Vite PWA, and routes `/api/*` to the same-origin Vercel Function. The deployed demo API uses temporary function JSON storage; IndexedDB remains the durable source of truth on each device, so a server cold start cannot remove local drafts or synchronized survey history.
+The connected Vercel project uses `client/` as its Root Directory. `client/vercel.json` preserves React Router deep links, serves the Vite PWA, and routes `/api/*` to the same-origin Vercel Function. Google Sheets is the durable central review store; Vercel `/tmp` is only a request-level fallback. IndexedDB remains the durable device source of truth, so a server or Sheets failure cannot remove local drafts and queued surveys.
 
 ## Submission Assets
 
